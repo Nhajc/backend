@@ -1,3 +1,5 @@
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
 CREATE TYPE release_type_enum AS ENUM (
     'ALBUM',
     'SINGLE',
@@ -15,12 +17,10 @@ CREATE TABLE users (
     username text NOT NULL UNIQUE,
     email text NOT NULL UNIQUE,
     password text NOT NULL,
-    avatar_url text,
     created_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
     role user_role_enum NOT NULL DEFAULT 'USER',
 
-    CONSTRAINT users_password_not_blank_check CHECK (btrim(password) <> ''),
-    CONSTRAINT users_avatar_url_not_blank_check CHECK (avatar_url IS NULL OR btrim(avatar_url) <> '')
+    CONSTRAINT users_password_not_blank_check CHECK (btrim(password) <> '')
 );
 
 CREATE TABLE refresh_tokens (
@@ -35,10 +35,8 @@ CREATE TABLE refresh_tokens (
 CREATE TABLE artists (
     id uuid PRIMARY KEY,
     name text NOT NULL,
-    avatar_url text,
 
-    CONSTRAINT artists_name_not_blank_check CHECK (btrim(name) <> ''),
-    CONSTRAINT artists_avatar_url_not_blank_check CHECK (avatar_url IS NULL OR btrim(avatar_url) <> '')
+    CONSTRAINT artists_name_not_blank_check CHECK (btrim(name) <> '')
 );
 
 CREATE TABLE genres (
@@ -52,13 +50,10 @@ CREATE TABLE genres (
 CREATE TABLE releases (
     id uuid PRIMARY KEY,
     title text NOT NULL,
-    cover_url text NOT NULL,
     release_type release_type_enum NOT NULL,
     release_date date NOT NULL,
-    uploaded_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    CONSTRAINT releases_title_not_blank_check CHECK (btrim(title) <> ''),
-    CONSTRAINT releases_cover_url_not_blank_check CHECK (btrim(cover_url) <> '')
+    CONSTRAINT releases_title_not_blank_check CHECK (btrim(title) <> '')
 );
 
 CREATE TABLE release_genres (
@@ -85,7 +80,6 @@ CREATE TABLE songs (
     UNIQUE (release_id, track_number),
     CONSTRAINT songs_title_not_blank_check CHECK (btrim(title) <> ''),
     CONSTRAINT songs_duration_seconds_positive_check CHECK (duration_seconds > 0),
-    CONSTRAINT songs_storage_path_not_blank_check CHECK (btrim(storage_path) <> ''),
     CONSTRAINT songs_track_number_positive_check CHECK (track_number > 0)
 );
 
@@ -99,12 +93,10 @@ CREATE TABLE song_artists (
 CREATE TABLE playlists (
     id uuid PRIMARY KEY,
     title text NOT NULL,
-    cover_url text,
     owner_id uuid NOT NULL REFERENCES users (id) ON DELETE CASCADE,
     is_private boolean NOT NULL DEFAULT true,
 
-    CONSTRAINT playlists_title_not_blank_check CHECK (btrim(title) <> ''),
-    CONSTRAINT playlists_cover_url_not_blank_check CHECK (cover_url IS NULL OR btrim(cover_url) <> '')
+    CONSTRAINT playlists_title_not_blank_check CHECK (btrim(title) <> '')
 );
 
 CREATE TABLE playlist_songs (
@@ -121,21 +113,25 @@ CREATE TABLE playlist_songs (
 CREATE TABLE user_saved_releases (
     user_id uuid NOT NULL REFERENCES users (id) ON DELETE CASCADE,
     release_id uuid NOT NULL REFERENCES releases (id) ON DELETE CASCADE,
-    saved_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
     last_activity_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    PRIMARY KEY (user_id, release_id),
-    CONSTRAINT user_saved_releases_activity_after_saved_check CHECK (last_activity_at >= saved_at)
+    PRIMARY KEY (user_id, release_id)
 );
 
 CREATE TABLE user_saved_playlists (
     user_id uuid NOT NULL REFERENCES users (id) ON DELETE CASCADE,
     playlist_id uuid NOT NULL REFERENCES playlists (id) ON DELETE CASCADE,
-    saved_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
     last_activity_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    PRIMARY KEY (user_id, playlist_id),
-    CONSTRAINT user_saved_playlists_activity_after_saved_check CHECK (last_activity_at >= saved_at)
+    PRIMARY KEY (user_id, playlist_id)
+);
+
+CREATE TABLE user_followed_artists (
+    user_id uuid NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    artist_id uuid NOT NULL REFERENCES artists (id) ON DELETE CASCADE,
+    followed_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    PRIMARY KEY (user_id, artist_id)
 );
 
 CREATE TABLE user_favorite_songs (
@@ -170,8 +166,11 @@ CREATE INDEX ON release_artists (artist_id);
 CREATE INDEX ON song_artists (artist_id);
 CREATE INDEX ON playlists (owner_id);
 CREATE INDEX ON user_saved_playlists (playlist_id);
-CREATE INDEX ON user_play_history (user_id, played_at);
-CREATE INDEX ON user_play_history (song_id);
+CREATE INDEX ON user_saved_releases (release_id);
 CREATE INDEX ON comments (song_id);
 CREATE INDEX ON comments (user_id);
 CREATE INDEX ON comments (parent_id);
+CREATE INDEX ON songs USING gin (title gin_trgm_ops);
+CREATE INDEX ON releases USING gin (title gin_trgm_ops);
+CREATE INDEX ON playlists USING gin (title gin_trgm_ops);
+CREATE INDEX ON artists USING gin (name gin_trgm_ops);
