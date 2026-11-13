@@ -79,8 +79,6 @@ CREATE TABLE songs (
     id uuid PRIMARY KEY,
     title text NOT NULL,
     duration_seconds int NOT NULL,
-    storage_path text NOT NULL,
-    media_ready boolean NOT NULL DEFAULT false,
     track_number int NOT NULL,
     release_id uuid NOT NULL REFERENCES releases (id) ON DELETE CASCADE,
 
