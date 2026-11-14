@@ -103,7 +103,6 @@ CREATE TABLE playlist_songs (
     playlist_id uuid NOT NULL REFERENCES playlists (id) ON DELETE CASCADE,
     song_id uuid NOT NULL REFERENCES songs (id) ON DELETE CASCADE,
     position int NOT NULL DEFAULT 0,
-    added_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     PRIMARY KEY (playlist_id, song_id),
     UNIQUE (playlist_id, position) DEFERRABLE INITIALLY DEFERRED,
