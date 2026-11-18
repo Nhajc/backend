@@ -20,3 +20,5 @@ buildNumber.properties
 
 .env
 media/
+
+.idea/
