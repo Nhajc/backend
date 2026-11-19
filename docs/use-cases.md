@@ -3,7 +3,8 @@
 - Nhajc is a music streaming app. For now, only Android.
 - `#n` = endpoint number in [api.md](api.md).
 - Bottom bar: Home, Search, Library, Admin (admins only).
-- Top left: my avatar (#8, or the default Material 3 account icon if none) → SettingsScreen.
+- Top left: my avatar from the account response (#5), or the default Material 3 account icon if none → SettingsScreen.
+- Account and artist details include `avatarDataUri`. Release and playlist details include `coverDataUri`.
 
 ## 1. Users
 | Who | Can do |
@@ -19,27 +20,26 @@
 | LoginScreen | Log in | #2 | With username or email. Link to RegisterScreen |
 | Whole app | Stay logged in | #3 | New access token every 15 min. After 30 days unused, log in again. A refresh token works once; using it again logs that device out |
 | SettingsScreen | Account info | #5 | Shown when the screen opens, no button |
-| | Change avatar | #6 | Tap the avatar. JPEG/PNG ≤ 5 MB |
-| | Remove avatar | #7 | Back to the default icon |
+| | Change avatar | #6 | Tap the avatar and send its Data URI with the profile update. JPEG/PNG ≤ 5 MB |
+| | Remove avatar | #6 | Send `avatarDataUri: null` with the profile update. Show the default icon |
 | | Audio quality | | App setting only. Low (AAC 64k), Medium (128k), High (256k), Lossless (FLAC), or Auto (by Wi-Fi / mobile data). The player sends it in #22 |
 | | Log out | #4 | Only this device |
 | AdminScreen | Menu | | Create artist, Create genre, Create release. Each opens its own screen |
-| CreateArtistScreen | Create artist | #9, #10 | Avatar is optional, sent after #9 |
+| CreateArtistScreen | Create artist | #9 | Send the name and optional `avatarDataUri` together |
 | CreateGenreScreen | Create genre | #11 | Name must be new |
-| CreateReleaseScreen | Create release | #12, #13 | 1–20 artists, 0–20 genres (from #21), cover optional, sent after #12 |
+| CreateReleaseScreen | Create release | #12 | 1–20 artists, 0–20 genres (from #21), and optional `coverDataUri` in the same request |
 | | Upload its songs | #14 | One row per song: track number, title, FLAC. Sent after #12, max 2 at a time, each row shows waiting / uploading / done / failed (retry). FLAC 16-bit, ≤ 48 kHz, mono/stereo, ≤ 200 MB, ≤ 2 h. Track number once per release. Users see a song after encoding. No cover yet → the FLAC picture becomes it |
-| ReleaseScreen | Open | #15 | Cover, type, date, artists, all songs |
+| ReleaseScreen | Open | #15 | Cover, release details, and all songs |
 | | Save / unsave | #33, #34 | |
-| PlaylistScreen | Open | #17 | Private: only the owner. Others get 404 |
-| | Cover | #18 | The first song's release cover |
+| PlaylistScreen | Open | #17 | Cover from the first song's release, or null if unavailable. Private: only the owner. Others get 404 |
 | | Save / unsave | #33, #34 | Other users' public playlists only |
 | | Edit mode | #36, #39, #40 | Owner only. Rename, make public/private, remove songs, drag to reorder |
 | | Delete | #37 | Owner only. Also the owner's "remove from library" |
-| ArtistScreen | Open | #19 | Name, avatar, all releases (newest first) |
+| ArtistScreen | Open | #19 | Name, avatar Data URI, and releases (newest first) |
 | | Follow / unfollow | #33, #34 | |
 | PlayerScreen | Play, seek | #22 | |
 | | Favorite / unfavorite | #33, #34 | Heart button |
-| | Lock screen cover | #16 | Covers are public for this |
+| | Lock screen cover | #15 | Use the cover from the authenticated release response to display lock screen artwork |
 | | Comments (scroll down) | #41 | Newest first, 10 per page, with reply count |
 | | Replies | #42 | Oldest first |
 | | Comment / reply | #43, #44 | Max 2000 characters. No reply to a reply |
