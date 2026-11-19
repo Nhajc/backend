@@ -3,7 +3,10 @@
 - `/api/v1` · port 8080 · JSON · errors: RFC 9457 `ProblemDetail`
 - auth: `Bearer <accessToken>` (15 min); refresh token 30 days, rotated each use, reuse revokes its family.
 - Access: **P** public · **U** user · **A** admin.
-- Paging: `page=0`, `size=20` (1–100). Enums are UPPERCASE. Images are fetched by id; 404 = no image.
+- Paging: `page=0`, `size=20` (1–100). Enums are UPPERCASE.
+- JSON create and full-update requests must supply all required request fields with valid, non-null values. Server-managed fields such as IDs, roles, and creation timestamps are excluded from the update body. An empty array is valid where the field allows zero items.
+- Send optional images in the same JSON body as the resource. Image fields accept `data:image/jpeg;base64,<encoded bytes>` or `data:image/png;base64,<encoded bytes>`, with a limit of 5 MB after Base64 decoding. On create, an omitted or null image means no image. On full update, send the current Data URI to keep the image, a new Data URI to replace it, or `null` to remove it. The client should always send the image field on update; the server treats omission as `null`.
+- Image fields in detail responses are `null` when the image is absent.
 
 ## 1. Endpoints
 
@@ -15,29 +18,22 @@
 | 3 | POST | `/auth/refresh` | P | `RefreshTokenRequest` | `AuthResponse` | |
 | 4 | POST | `/auth/logout` | P | `RefreshTokenRequest` | 204 | |
 | 5 | GET | `/users/me` | U | | `UserResponse` | |
-| 6 | PUT | `/users/me/avatar` | U | `image/jpeg\|png` | 204 | Raw image body, ≤ 5 MB; replaces the old one |
-| 7 | DELETE | `/users/me/avatar` | U | | 204 | Idempotent |
-| 8 | GET | `/users/{id}/avatar` | U | | `image/jpeg\|png` | |
+| 6 | PUT | `/users/me` | U | `UpdateProfileRequest` | 200 `UserResponse` | Replaces editable profile fields. Currently only the avatar is editable. |
 
 ### 1.2 Admin
 | # | Method | Path | Acc | Body | Returns | Notes |
 |---|---|---|---|---|---|---|
-| 9 | POST | `/admin/artists` | A | `ArtistRequest` | 201 `{id}` | `name` ≤ 255 |
-| 10 | PUT | `/admin/artists/{id}/avatar` | A | `image/jpeg\|png` | 204 | Raw image body, ≤ 5 MB; replaces the old one |
+| 9 | POST | `/admin/artists` | A | `ArtistRequest` | 201 `{id}` | `name` ≤ 255; optional avatar in the JSON body |
 | 11 | POST | `/admin/genres` | A | `GenreRequest` | 201 `{id}` | `name` ≤ 100; 409 if the genre exists |
-| 12 | POST | `/admin/releases` | A | `ReleaseRequest` | 201 `{id}` | `artistIds` 1–20; `genreIds` 0–20 |
-| 13 | PUT | `/admin/releases/{id}/cover` | A | `image/jpeg\|png` | 204 | Raw image body, ≤ 5 MB; replaces the old one |
+| 12 | POST | `/admin/releases` | A | `ReleaseRequest` | 201 `{id}` | `artistIds` 1–20; `genreIds` 0–20; optional cover in the JSON body |
 | 14 | POST | `/admin/releases/{id}/songs` | A | multipart `UploadSongRequest` | 201 `{id}` | `trackNumber` ≥ 1, 409 if taken; `title` ≤ 255; `file`: FLAC 16-bit, ≤ 48 kHz, mono/stereo, ≤ 200 MB, ≤ 7200 s; max 2 concurrent → 429 |
 
 ### 1.3 Catalog
 | # | Method | Path | Acc | Body | Returns | Notes |
 |---|---|---|---|---|---|---|
 | 15 | GET | `/releases/{id}` | U | | `ReleaseResponse` | |
-| 16 | GET | `/releases/{id}/cover` | P | | `image/jpeg\|png` | |
 | 17 | GET | `/playlists/{id}` | U | | `PlaylistResponse` | Private: owner only, else 404 |
-| 18 | GET | `/playlists/{id}/cover` | U | | `image/jpeg\|png` | Private: owner only, else 404 |
 | 19 | GET | `/artists/{id}` | U | | `ArtistResponse` | |
-| 20 | GET | `/artists/{id}/avatar` | P | | `image/jpeg\|png` | |
 | 21 | GET | `/genres` | U | | `GenreResponse[]` | Not paged |
 | 22 | GET | `/songs/{id}/audio/{quality:low\|medium\|high\|lossless}` | U | | 200 / 206 audio | Optional `Range`; 416 bad range |
 | 23 | GET | `/search{?q,page,size}` | U | | `PageResponse<SearchItemResponse>` | All types mixed |
@@ -77,31 +73,34 @@
 RegisterRequest         { username, email, password }
 LoginRequest            { usernameOrEmail, password }
 RefreshTokenRequest     { refreshToken }
+UpdateProfileRequest    { avatarDataUri: string|null }
 PlaylistRequest         { title, isPrivate }
 CommentRequest          { content }
-ArtistRequest           { name }
+ArtistRequest           { name, avatarDataUri?: string|null }
 GenreRequest            { name }
-ReleaseRequest          { title, releaseType, releaseDate, artistIds, genreIds }
+ReleaseRequest          { title, releaseType, releaseDate, artistIds, genreIds,
+                          coverDataUri?: string|null }
 UploadSongRequest       { trackNumber, title, file }                     // multipart
 
 AuthResponse            { accessToken, refreshToken, user: UserResponse }
-UserResponse            { id, username, email, createdAt, role: USER|ADMIN }
+UserResponse            { id, username, email, createdAt, role: USER|ADMIN, avatarDataUri: string|null }
 UserSummaryResponse     { id, username }
 PageResponse<T>         { content: T[], hasNext }
 
 ArtistSummaryResponse   { id, name }
-ArtistResponse          { ...ArtistSummaryResponse, isFollowed, releases: ReleaseSummaryResponse[] }
+ArtistResponse          { ...ArtistSummaryResponse, avatarDataUri: string|null, isFollowed,
+                          releases: ReleaseSummaryResponse[] }
 GenreResponse           { id, name, slug }
 
 ReleaseSummaryResponse  { id, title, releaseType: ALBUM|SINGLE|EP|COMPILATION, releaseDate, songCount,
                           artists: ArtistSummaryResponse[], isSaved }
-ReleaseResponse         { ...ReleaseSummaryResponse, songs: SongResponse[] }
+ReleaseResponse         { ...ReleaseSummaryResponse, coverDataUri: string|null, songs: SongResponse[] }
 
 SongResponse            { id, title, durationSeconds, trackNumber, release: { id, title },
                           artists: ArtistSummaryResponse[], isFavorited }
 
 PlaylistSummaryResponse { id, title, isPrivate, owner: UserSummaryResponse, songCount, isSaved }
-PlaylistResponse        { ...PlaylistSummaryResponse, songs: SongResponse[] }
+PlaylistResponse        { ...PlaylistSummaryResponse, coverDataUri: string|null, songs: SongResponse[] }
 
 CommentResponse         { id, content, commentedAt, user: UserSummaryResponse, replyCount }
 
