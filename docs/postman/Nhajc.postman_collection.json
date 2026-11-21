@@ -1,0 +1,387 @@
+{
+  "info": {
+    "name": "Nhajc API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "6 API đã triển khai, gồm 7 request mẫu cho Auth và Users. Import environment Nhajc Local, chọn environment rồi điền baseUrl, username, email, password. Register/Login/Refresh tự lưu token. Chạy toàn collection bằng tài khoản thử sẽ cập nhật/xóa avatar và đăng xuất. Request upload được bỏ qua khi chưa chọn file. Khi chạy riêng, gọi Login trước các request Users."
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{username}}\",\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/auth/register",
+            "description": "Tạo tài khoản USER và cấp token. Thành công 201. Username/email trùng trả 409, dữ liệu không hợp lệ trả 400. Điền tài khoản thử mới trong environment."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "if (pm.response.code === 201) {",
+                  "    const body = pm.response.json();",
+                  "    pm.test(\"Response có bộ token và thông tin tài khoản\", function () {",
+                  "        pm.expect(body.accessToken).to.be.a(\"string\").and.not.empty;",
+                  "        pm.expect(body.refreshToken).to.be.a(\"string\").and.not.empty;",
+                  "        pm.expect(body.user).to.have.property(\"id\");",
+                  "        pm.expect(body.user).to.have.property(\"avatar\");",
+                  "    });",
+                  "    pm.environment.set(\"accessToken\", body.accessToken);",
+                  "    pm.environment.set(\"refreshToken\", body.refreshToken);",
+                  "    pm.environment.set(\"userId\", body.user.id);",
+                  "    pm.environment.set(\"avatarUrl\", body.user.avatar || \"\");",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"usernameOrEmail\": \"{{username}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "description": "Đăng nhập bằng username hoặc email. Thành công 200, sai thông tin trả 401. Tự lưu token vào environment."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "if (pm.response.code === 200) {",
+                  "    const body = pm.response.json();",
+                  "    pm.test(\"Response có bộ token và thông tin tài khoản\", function () {",
+                  "        pm.expect(body.accessToken).to.be.a(\"string\").and.not.empty;",
+                  "        pm.expect(body.refreshToken).to.be.a(\"string\").and.not.empty;",
+                  "        pm.expect(body.user).to.have.property(\"id\");",
+                  "        pm.expect(body.user).to.have.property(\"avatar\");",
+                  "    });",
+                  "    pm.environment.set(\"accessToken\", body.accessToken);",
+                  "    pm.environment.set(\"refreshToken\", body.refreshToken);",
+                  "    pm.environment.set(\"userId\", body.user.id);",
+                  "    pm.environment.set(\"avatarUrl\", body.user.avatar || \"\");",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Refresh tokens",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/auth/refresh",
+            "description": "Gửi refresh token hiện tại. Thành công 200 và tự thay thế cả hai token. Token hết hạn hoặc đã dùng trả 401 và thu hồi nhóm token của phiên."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "if (pm.response.code === 200) {",
+                  "    const body = pm.response.json();",
+                  "    pm.test(\"Response có bộ token và thông tin tài khoản\", function () {",
+                  "        pm.expect(body.accessToken).to.be.a(\"string\").and.not.empty;",
+                  "        pm.expect(body.refreshToken).to.be.a(\"string\").and.not.empty;",
+                  "        pm.expect(body.user).to.have.property(\"id\");",
+                  "        pm.expect(body.user).to.have.property(\"avatar\");",
+                  "    });",
+                  "    pm.environment.set(\"accessToken\", body.accessToken);",
+                  "    pm.environment.set(\"refreshToken\", body.refreshToken);",
+                  "    pm.environment.set(\"userId\", body.user.id);",
+                  "    pm.environment.set(\"avatarUrl\", body.user.avatar || \"\");",
+                  "}",
+                  "if (pm.response.code === 401) {",
+                  "    pm.environment.unset(\"accessToken\");",
+                  "    pm.environment.unset(\"refreshToken\");",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "Get my profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/users/me",
+            "description": "Lấy hồ sơ của tài khoản đang đăng nhập. Trường avatar là URL ký sẵn, mặc định có hạn 1 giờ, hoặc null. URL được lưu trong avatarUrl của environment."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "if (pm.response.code === 200) {",
+                  "    const body = pm.response.json();",
+                  "    pm.test(\"Response có hồ sơ tài khoản và avatar\", function () {",
+                  "        pm.expect(body).to.have.all.keys(\"id\", \"username\", \"email\", \"createdAt\", \"role\", \"avatar\");",
+                  "    });",
+                  "    pm.test(\"Avatar là URL ký sẵn hoặc null\", function () {",
+                  "        const valid = body.avatar === null || (typeof body.avatar === \"string\" && /^https?:\\/\\//.test(body.avatar));",
+                  "        pm.expect(valid).to.eql(true);",
+                  "    });",
+                  "    pm.environment.set(\"userId\", body.id);",
+                  "    pm.environment.set(\"avatarUrl\", body.avatar || \"\");",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Upload avatar",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/users/me",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "_charset_",
+                  "value": "UTF-8",
+                  "type": "text"
+                },
+                {
+                  "key": "avatar",
+                  "type": "file",
+                  "src": null,
+                  "description": "Chọn file JPEG/PNG tối đa 5 MB trước khi gửi."
+                }
+              ]
+            },
+            "description": "Chọn file trong Body → form-data → avatar. Postman tự tạo Content-Type và boundary. Thành công 200, ảnh không hợp lệ 400, quá 5 MB 413. Request được bỏ qua khi chưa chọn file để tránh vô tình xóa avatar."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const parts = pm.request.body.formdata.toJSON();",
+                  "const avatar = parts.find(function (part) { return part.key === \"avatar\" && !part.disabled; });",
+                  "const source = avatar && avatar.src;",
+                  "const hasFile = typeof source === \"string\" ? source.length > 0 : Array.isArray(source) && source.length > 0;",
+                  "if (!hasFile) {",
+                  "    console.info(\"Chọn file JPEG/PNG trong Body → form-data → avatar trước khi gửi.\");",
+                  "    pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "if (pm.response.code === 200) {",
+                  "    const body = pm.response.json();",
+                  "    pm.test(\"Response có hồ sơ tài khoản và avatar\", function () {",
+                  "        pm.expect(body).to.have.all.keys(\"id\", \"username\", \"email\", \"createdAt\", \"role\", \"avatar\");",
+                  "    });",
+                  "    pm.test(\"Avatar là URL ký sẵn hoặc null\", function () {",
+                  "        const valid = body.avatar === null || (typeof body.avatar === \"string\" && /^https?:\\/\\//.test(body.avatar));",
+                  "        pm.expect(valid).to.eql(true);",
+                  "    });",
+                  "    pm.environment.set(\"userId\", body.id);",
+                  "    pm.environment.set(\"avatarUrl\", body.avatar || \"\");",
+                  "}",
+                  "if (pm.response.code === 200) {",
+                  "    pm.test(\"Upload trả về URL avatar\", function () {",
+                  "        pm.expect(typeof pm.response.json().avatar === \"string\").to.eql(true);",
+                  "    });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Remove avatar",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/users/me",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "_charset_",
+                  "value": "UTF-8",
+                  "type": "text"
+                }
+              ]
+            },
+            "description": "Xóa avatar của tài khoản đang đăng nhập bằng PUT hồ sơ, gửi _charset_=UTF-8 và bỏ phần file avatar. Thành công 200 với avatar=null."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "if (pm.response.code === 200) {",
+                  "    const body = pm.response.json();",
+                  "    pm.test(\"Response có hồ sơ tài khoản và avatar\", function () {",
+                  "        pm.expect(body).to.have.all.keys(\"id\", \"username\", \"email\", \"createdAt\", \"role\", \"avatar\");",
+                  "    });",
+                  "    pm.test(\"Avatar là URL ký sẵn hoặc null\", function () {",
+                  "        const valid = body.avatar === null || (typeof body.avatar === \"string\" && /^https?:\\/\\//.test(body.avatar));",
+                  "        pm.expect(valid).to.eql(true);",
+                  "    });",
+                  "    pm.environment.set(\"userId\", body.id);",
+                  "    pm.environment.set(\"avatarUrl\", body.avatar || \"\");",
+                  "}",
+                  "if (pm.response.code === 200) {",
+                  "    pm.test(\"Avatar đã được xóa\", function () {",
+                  "        pm.expect(pm.response.json().avatar).to.eql(null);",
+                  "    });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Logout",
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/auth/logout",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "description": "Thu hồi nhóm refresh token của phiên. Thành công 204, body rỗng. Tự xóa token đã lưu trong environment. Access token đã cấp còn hiệu lực tới khi hết hạn."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 204\", function () {",
+              "    pm.response.to.have.status(204);",
+              "});",
+              "if (pm.response.code === 204) {",
+              "    [\"accessToken\", \"refreshToken\", \"userId\", \"avatarUrl\"].forEach(function (key) {",
+              "        pm.environment.unset(key);",
+              "    });",
+              "}"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

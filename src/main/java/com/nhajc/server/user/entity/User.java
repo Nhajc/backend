@@ -28,6 +28,15 @@ public class User {
     @Column(nullable = false, length = 20)
     private UserRole role;
 
+    @Column(columnDefinition = "bytea")
+    private byte[] avatar;
+
+    @Column(name = "avatar_content_type", length = 10)
+    private String avatarContentType;
+
+    @Column(name = "avatar_object_key", columnDefinition = "text")
+    private String avatarObjectKey;
+
     protected User() {
     }
 
@@ -56,5 +65,23 @@ public class User {
     }
     public UserRole getRole() {
         return role;
+    }
+
+    public byte[] getAvatar() {
+        return avatar;
+    }
+
+    public String getAvatarContentType() {
+        return avatarContentType;
+    }
+
+    public String getAvatarObjectKey() {
+        return avatarObjectKey;
+    }
+
+    public void updateAvatarObject(String objectKey, String contentType) {
+        this.avatar = null;
+        this.avatarObjectKey = objectKey;
+        this.avatarContentType = contentType;
     }
 }

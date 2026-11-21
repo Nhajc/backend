@@ -10,6 +10,7 @@ import com.nhajc.server.auth.service.AuthService;
 import com.nhajc.server.auth.service.JwtService;
 import com.nhajc.server.user.dto.UserResponse;
 import com.nhajc.server.user.entity.User;
+import com.nhajc.server.user.mapper.UserResponseMapper;
 import com.nhajc.server.user.repository.UserRepository;
 
 import org.springframework.dao.DataIntegrityViolationException;
@@ -36,14 +37,16 @@ public class AuthServiceImpl implements AuthService {
     private final RefreshTokenRepository refreshTokens;
     private final PasswordEncoder passwords;
     private final JwtService jwtService;
+    private final UserResponseMapper responses;
     private final SecureRandom random = new SecureRandom();
 
     public AuthServiceImpl(UserRepository users, RefreshTokenRepository refreshTokens,
-                       PasswordEncoder passwords, JwtService jwtService) {
+                       PasswordEncoder passwords, JwtService jwtService, UserResponseMapper responses) {
         this.users = users;
         this.refreshTokens = refreshTokens;
         this.passwords = passwords;
         this.jwtService = jwtService;
+        this.responses = responses;
     }
 
     @Override
@@ -129,7 +132,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional
     public UserResponse me(String subject) {
         UUID userId;
         try {
@@ -137,8 +140,8 @@ public class AuthServiceImpl implements AuthService {
         } catch (IllegalArgumentException | NullPointerException exception) {
             throw unauthorized("Invalid access token.");
         }
-        return users.findById(userId)
-                .map(UserResponse::from)
+        return users.findForProfileById(userId)
+                .map(responses::from)
                 .orElseThrow(() -> unauthorized("User no longer exists."));
     }
 
@@ -152,7 +155,7 @@ public class AuthServiceImpl implements AuthService {
         refreshTokens.save(token);
 
         return new AuthResponse(jwtService.createAccessToken(user), rawToken,
-                UserResponse.from(user));
+                responses.from(user));
     }
 
     private static String hash(String token) {
@@ -168,4 +171,5 @@ public class AuthServiceImpl implements AuthService {
     private static ResponseStatusException unauthorized(String detail) {
         return new ResponseStatusException(HttpStatus.UNAUTHORIZED, detail);
     }
+
 }
