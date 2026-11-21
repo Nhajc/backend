@@ -2,16 +2,16 @@ services:
   postgres:
     image: postgres:17.12-alpine
     environment:
-      POSTGRES_DB: ${DB_NAME}
-      POSTGRES_USER: ${DB_USER}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
-      PGPORT: ${DB_PORT}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      PGPORT: ${PGPORT}
     ports:
-      - "127.0.0.1:${DB_PORT}:${DB_PORT}"
+      - "127.0.0.1:${PGPORT}:${PGPORT}"
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: pg_isready -h 127.0.0.1 -U ${DB_USER}
+      test: pg_isready -h 127.0.0.1 -U ${POSTGRES_USER}
       interval: 5s
       retries: 10
 
@@ -19,11 +19,8 @@ services:
     build: .
     env_file: .env
     environment:
-      DB_HOST: postgres
-      MINIO_ENDPOINT: http://minio:9000
-      MINIO_PUBLIC_ENDPOINT: ${MINIO_PUBLIC_ENDPOINT:-http://localhost:9000}
-    volumes:
-      - media:/app/media
+      PGHOST: postgres
+      S3_ENDPOINT: http://minio:9000
     ports:
       - "${SERVER_PORT}:${SERVER_PORT}"
     depends_on:
@@ -38,9 +35,8 @@ services:
     image: nhajc-minio:local
     command: [ "server", "/data", "--console-address", ":9001" ]
     environment:
-      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
-      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
-      MINIO_REGION_NAME: ${MINIO_REGION:-us-east-1}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?Set MINIO_ROOT_USER in .env}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?Set MINIO_ROOT_PASSWORD in .env}
     ports:
       - "127.0.0.1:9000:9000"
       - "127.0.0.1:9001:9001"
@@ -55,5 +51,4 @@ services:
 
 volumes:
   postgres-data:
-  media:
   minio-data:
