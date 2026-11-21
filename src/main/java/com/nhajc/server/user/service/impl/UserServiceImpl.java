@@ -38,13 +38,17 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
+    public UserResponse me(String subject) {
+        return users.findById(userId(subject))
+                .map(responses::from)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED,
+                        "User no longer exists."));
+    }
+
+    @Override
+    @Transactional
     public UserResponse updateProfile(String subject, UpdateProfileRequest request) {
-        UUID userId;
-        try {
-            userId = UUID.fromString(subject);
-        } catch (IllegalArgumentException | NullPointerException exception) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid access token.");
-        }
+        UUID userId = userId(subject);
 
         byte[] avatar = null;
         String contentType = null;
@@ -73,12 +77,12 @@ public class UserServiceImpl implements UserService {
         return responses.from(user);
     }
 
-    @Override
-    @Transactional
-    public void migrateLegacyAvatar(UUID userId) {
-        users.findLockedById(userId)
-                .filter(user -> user.getAvatar() != null)
-                .ifPresent(user -> avatars.replace(user, user.getAvatar(), user.getAvatarContentType()));
+    private static UUID userId(String subject) {
+        try {
+            return UUID.fromString(subject);
+        } catch (IllegalArgumentException | NullPointerException exception) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid access token.");
+        }
     }
 
     private String validateImage(byte[] bytes) {

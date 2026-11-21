@@ -1,15 +1,12 @@
 # Nhajc API
 
-- `/api/v1` · port 8080 · JSON responses; multipart requests where specified · errors: RFC 9457 `ProblemDetail`
+- `/api/v1` · port 8080 · JSON (multipart where marked) · errors: RFC 9457 `ProblemDetail`
 - auth: `Bearer <accessToken>` (15 min); refresh token 30 days, rotated each use, reuse revokes its family.
 - Access: **P** public · **U** user · **A** admin.
-- Postman files for the implemented APIs are in `docs/postman/`. Import the collection and local environment, select `Nhajc Local`, and set `baseUrl`, `username`, `email`, and `password`. Use a new username/email for registration. Login can use the username or email in its `usernameOrEmail` field.
-- Register, login, and refresh save the current tokens in the selected environment. Users requests inherit Bearer authentication from the collection. Logout clears the saved tokens.
-- In `Upload avatar`, select a JPEG/PNG file in Body → form-data → `avatar` before sending; the request is skipped when no file is selected. `Remove avatar` sends `_charset_=UTF-8` with the file part omitted. Running the entire collection includes avatar removal and logout, so use a test account.
 - Paging: `page=0`, `size=20` (1–100). Enums are UPPERCASE.
-- JSON requests: send every field; only `|null` fields may be `null`. `PUT` replaces the whole object.
-- Image uploads in JSON requests use `data:image/jpeg|png;base64,…`, ≤ 5 MB decoded, `null` = no image. Profile updates use the multipart rules below.
-- Image response fields `avatar` and `cover` contain presigned HTTP(S) GET URLs, or `null` when no image exists. URLs expire after 1 hour by default (`MINIO_URL_EXPIRY_SECONDS`). Fetch the resource again to obtain a fresh URL after expiry. A URL can stop working earlier if its image is deleted or replaced. Anyone holding a valid URL can fetch the image until access expires or the object is removed.
+- JSON requests: send every field. `T?` = may be `null`; in multipart, `null` = leave the part out. `PUT` replaces the whole object.
+- Image uploads: JPEG/PNG ≤ 5 MB; in JSON as `data:image/jpeg|png;base64,…` (`null` = no image). 400 invalid image, 413 too large, 503 storage down.
+- Image responses: `avatarUrl` / `coverUrl` = presigned URL, used as given, or `null`. Valid 1 h; refetch the resource for a new one.
 
 ## 1. Endpoints
 
@@ -21,15 +18,7 @@
 | 3 | POST | `/auth/refresh` | P | `RefreshTokenRequest` | `AuthResponse` | |
 | 4 | POST | `/auth/logout` | P | `RefreshTokenRequest` | 204 | |
 | 5 | GET | `/users/me` | U | | `UserResponse` | |
-| 6 | PUT | `/users/me` | U | multipart `UpdateProfileRequest` | 200 `UserResponse` | Only the avatar for now; see multipart rules below |
-
-Profile update (#6) uses `multipart/form-data`. Supply an `avatar` file part containing JPEG/PNG bytes, ≤ 5 MB, to set or replace the avatar. Omit the `avatar` part to remove the avatar. To keep it on a full update, resend the current image as a file. A supplied file must be non-empty and contain a valid JPEG/PNG image. The response is JSON `UserResponse`, including `avatar` with a presigned URL for the saved image or `null` after removal.
-
-For removal, include the text form field `_charset_=UTF-8` to send a valid multipart body while omitting `avatar`. Malformed multipart bodies and invalid images return 400; files larger than 5 MB return 413.
-
-Image uploads and migration of existing database avatars can return 503 when file storage is unavailable. An existing MinIO object key can be signed locally even during a storage outage; fetching its URL requires MinIO to be available. A refresh that fails during avatar migration leaves the submitted refresh token usable for a retry.
-
-Set `MINIO_PUBLIC_ENDPOINT` to the S3 API address reachable by the frontend, including its scheme and port. Backend requests use `MINIO_ENDPOINT`, which can be an internal Docker address. The host in a returned signed URL must be used as generated.
+| 6 | PUT | `/users/me` | U | multipart `UpdateProfileRequest` | 200 `UserResponse` | Only the avatar for now. `avatar` part = set; no `avatar` part (send `_charset_=UTF-8` so the body isn't empty) = remove |
 
 ### 1.2 Admin
 | # | Method | Path | Acc | Body | Returns | Notes |
@@ -46,7 +35,7 @@ Set `MINIO_PUBLIC_ENDPOINT` to the S3 API address reachable by the frontend, inc
 | 12 | GET | `/playlists/{id}` | U | | `PlaylistResponse` | Private: owner only, else 404 |
 | 13 | GET | `/artists/{id}` | U | | `ArtistResponse` | |
 | 14 | GET | `/genres` | U | | `GenreResponse[]` | Not paged |
-| 15 | GET | `/songs/{id}/audio/{quality:low\|medium\|high\|lossless}` | U | | 200 / 206 audio | Optional `Range`; 416 bad range |
+| 15 | GET | `/songs/{id}/audio/{quality:low\|medium\|high\|lossless}` | U | | 302 | `Location` = presigned audio URL; follow it (it supports `Range`) |
 | 16 | GET | `/search{?q,page,size}` | U | | `PageResponse<SearchItemResponse>` | All types mixed |
 | 17 | GET | `/search/songs{?q,page,size}` | U | | `PageResponse<SongResponse>` | |
 | 18 | GET | `/search/releases{?q,page,size}` | U | | `PageResponse<ReleaseSummaryResponse>` | |
@@ -84,30 +73,30 @@ Set `MINIO_PUBLIC_ENDPOINT` to the S3 API address reachable by the frontend, inc
 RegisterRequest         { username, email, password }
 LoginRequest            { usernameOrEmail, password }
 RefreshTokenRequest     { refreshToken }
-UpdateProfileRequest    { avatar?: file }                               // multipart; omitted = remove
+UpdateProfileRequest    { avatar: file? }
 PlaylistRequest         { title, isPrivate }
 CommentRequest          { content }
-ArtistRequest           { name, avatarDataUri: string|null }
+ArtistRequest           { name, avatarDataUri: string? }
 GenreRequest            { name }
-ReleaseRequest          { title, releaseType, releaseDate, artistIds, genreIds, coverDataUri: string|null }
+ReleaseRequest          { title, releaseType, releaseDate, artistIds, genreIds, coverDataUri: string? }
 UploadSongRequest       { trackNumber, title, file }
 
 AuthResponse            { accessToken, refreshToken, user: UserResponse }
-UserResponse            { id, username, email, createdAt, role: USER|ADMIN, avatar: string|null }
-UserSummaryResponse     { id, username, avatar: string|null }
+UserResponse            { id, username, email, createdAt, role: USER|ADMIN, avatarUrl: string? }
+UserSummaryResponse     { id, username, avatarUrl: string? }
 PageResponse<T>         { content: T[], hasNext }
 
-ArtistSummaryResponse   { id, name, avatar: string|null }
+ArtistSummaryResponse   { id, name, avatarUrl: string? }
 ArtistResponse          { ...ArtistSummaryResponse, isFollowed, releases: ReleaseSummaryResponse[] }
 GenreResponse           { id, name, slug }
 
-ReleaseSummaryResponse  { id, title, cover: string|null, releaseType: ALBUM|SINGLE|EP|COMPILATION, releaseDate, songCount, artists: ArtistSummaryResponse[], isSaved }
+ReleaseSummaryResponse  { id, title, coverUrl: string?, releaseType: ALBUM|SINGLE|EP|COMPILATION, releaseDate, songCount, artists: ArtistSummaryResponse[], isSaved }
 ReleaseResponse         { ...ReleaseSummaryResponse, songs: SongSummaryResponse[] }
 
 SongSummaryResponse     { id, title, durationSeconds, trackNumber, artists: ArtistSummaryResponse[], isFavorited }
-SongResponse            { ...SongSummaryResponse, release: { id, title, cover: string|null } }
+SongResponse            { ...SongSummaryResponse, releaseId, releaseTitle, coverUrl: string? }
 
-PlaylistSummaryResponse { id, title, cover: string|null, isPrivate, owner: UserSummaryResponse, songCount, isSaved }
+PlaylistSummaryResponse { id, title, coverUrl: string?, isPrivate, owner: UserSummaryResponse, songCount, isSaved }
 PlaylistResponse        { ...PlaylistSummaryResponse, songs: SongResponse[] }
 
 CommentResponse         { id, content, commentedAt, user: UserSummaryResponse, replyCount }

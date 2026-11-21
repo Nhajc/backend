@@ -19,7 +19,6 @@ buildNumber.properties
 .vscode/
 
 .env
-media/
 
 .idea/
 /deploy/

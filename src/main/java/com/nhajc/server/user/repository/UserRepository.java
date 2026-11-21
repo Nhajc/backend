@@ -9,24 +9,14 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.Optional;
-import java.util.List;
 import java.util.UUID;
 
 public interface UserRepository extends JpaRepository<User, UUID> {
-    boolean existsByUsernameIgnoreCase(String username);
-    boolean existsByEmailIgnoreCase(String email);
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
-    Optional<User> findByUsernameIgnoreCase(String username);
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
-    Optional<User> findByEmailIgnoreCase(String email);
+    @Query("select u from User u where lower(u.username) = lower(:username)")
+    Optional<User> findByUsernameIgnoreCase(@Param("username") String username);
 
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("select u from User u where u.id = :id")
-    Optional<User> findForProfileById(@Param("id") UUID id);
-
-    @Query(value = "SELECT id FROM users WHERE avatar IS NOT NULL ORDER BY id LIMIT 20",
-            nativeQuery = true)
-    List<UUID> findLegacyAvatarIds();
+    @Query("select u from User u where lower(u.email) = lower(:email)")
+    Optional<User> findByEmailIgnoreCase(@Param("email") String email);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select u from User u where u.id = :id")
