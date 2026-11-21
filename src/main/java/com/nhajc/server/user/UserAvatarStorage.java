@@ -28,7 +28,7 @@ public class UserAvatarStorage {
             storage.upload(newKey, avatar, contentType);
             cleanup.completeUpload(newKey);
         }
-        user.updateAvatarObject(newKey, contentType);
+        user.updateAvatarObject(newKey);
         cleanup.enqueue(oldKey);
     }
 }

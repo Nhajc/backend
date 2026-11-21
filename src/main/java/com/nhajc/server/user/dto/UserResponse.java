@@ -12,10 +12,10 @@ public record UserResponse(
         String email,
         Instant createdAt,
         UserRole role,
-        String avatar
+        String avatarUrl
 ) {
-    public static UserResponse from(User user, String avatar) {
+    public static UserResponse from(User user, String avatarUrl) {
         return new UserResponse(user.getId(), user.getUsername(), user.getEmail(),
-                user.getCreatedAt(), user.getRole(), avatar);
+                user.getCreatedAt(), user.getRole(), avatarUrl);
     }
 }

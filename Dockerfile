@@ -8,7 +8,6 @@ RUN ./mvnw -DskipTests package
 FROM eclipse-temurin:25.0.5_8-jre-alpine
 RUN apk add --no-cache flac fdkaac
 WORKDIR /app
-RUN mkdir media && chown nobody media
 COPY --from=build /workspace/target/*.jar app.jar
 USER nobody
 ENTRYPOINT ["java", "-jar", "app.jar"]

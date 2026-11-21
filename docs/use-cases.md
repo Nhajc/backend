@@ -4,7 +4,7 @@
 - `#n` = endpoint number in [api.md](api.md).
 - Bottom bar: Home, Search, Library, Admin (admins only).
 - Top left: my avatar (#5), or the default Material 3 account icon if none → SettingsScreen.
-- Image fields `avatar` and `cover` contain presigned URLs in the JSON. Load the image from that URL. A null field shows a default icon. On URL expiry, fetch the resource again for a fresh URL.
+- Images load from `avatarUrl` / `coverUrl`. Null → a default icon. After 1 h the URL expires: load the data again.
 
 ## 1. Users
 | Who | Can do |
@@ -20,8 +20,8 @@
 | LoginScreen | Log in | #2 | With username or email. Link to RegisterScreen |
 | Whole app | Stay logged in | #3 | New access token every 15 min. After 30 days unused, log in again. A refresh token works once; using it again logs that device out |
 | SettingsScreen | Account info | #5 | Shown when the screen opens, no button |
-| | Change avatar | #6 | Tap the avatar. Send a JPEG/PNG file ≤ 5 MB in the multipart `avatar` part. Load the image from the response's `avatar` URL |
-| | Remove avatar | #6 | Submit a multipart profile update with text field `_charset_=UTF-8` and the `avatar` part omitted. The response has `avatar: null`; show the default icon |
+| | Change avatar | #6 | Tap the avatar. JPEG/PNG ≤ 5 MB |
+| | Remove avatar | #6 | Back to the default icon |
 | | Audio quality | | App setting only. Low (AAC 64k), Medium (128k), High (256k), Lossless (FLAC), or Auto (by Wi-Fi / mobile data). The player sends it in #15 |
 | | Log out | #4 | Only this device |
 | AdminScreen | Menu | | Create artist, Create genre, Create release. Each opens its own screen |

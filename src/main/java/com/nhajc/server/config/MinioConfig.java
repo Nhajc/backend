@@ -17,10 +17,10 @@ public class MinioConfig {
     @Bean
     @Primary
     public MinioClient minioClient(
-            @Value("${MINIO_ENDPOINT}") String endpoint,
-            @Value("${MINIO_ACCESS_KEY}") String accessKey,
-            @Value("${MINIO_SECRET_KEY}") String secretKey,
-            @Value("${MINIO_REGION:us-east-1}") String region
+            @Value("${S3_ENDPOINT}") String endpoint,
+            @Value("${MINIO_ROOT_USER}") String accessKey,
+            @Value("${MINIO_ROOT_PASSWORD}") String secretKey,
+            @Value("${S3_REGION}") String region
     ) {
         return MinioClient.builder()
                 .endpoint(endpoint)
@@ -34,10 +34,10 @@ public class MinioConfig {
 
     @Bean("minioPublicClient")
     public MinioClient minioPublicClient(
-            @Value("${MINIO_PUBLIC_ENDPOINT:${MINIO_ENDPOINT}}") String endpoint,
-            @Value("${MINIO_ACCESS_KEY}") String accessKey,
-            @Value("${MINIO_SECRET_KEY}") String secretKey,
-            @Value("${MINIO_REGION:us-east-1}") String region
+            @Value("${S3_PUBLIC_ENDPOINT}") String endpoint,
+            @Value("${MINIO_ROOT_USER}") String accessKey,
+            @Value("${MINIO_ROOT_PASSWORD}") String secretKey,
+            @Value("${S3_REGION}") String region
     ) {
         // The signed host must match the address used by the frontend.
         return MinioClient.builder()
