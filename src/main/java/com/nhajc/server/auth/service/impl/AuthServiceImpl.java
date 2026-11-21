@@ -8,7 +8,6 @@ import com.nhajc.server.auth.entity.RefreshToken;
 import com.nhajc.server.auth.repository.RefreshTokenRepository;
 import com.nhajc.server.auth.service.AuthService;
 import com.nhajc.server.auth.service.JwtService;
-import com.nhajc.server.user.dto.UserResponse;
 import com.nhajc.server.user.entity.User;
 import com.nhajc.server.user.mapper.UserResponseMapper;
 import com.nhajc.server.user.repository.UserRepository;
@@ -58,10 +57,6 @@ public class AuthServiceImpl implements AuthService {
         if (request.password().getBytes(StandardCharsets.UTF_8).length > 72) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "Password must be at most 72 UTF-8 bytes.");
-        }
-        if (users.existsByUsernameIgnoreCase(username) || users.existsByEmailIgnoreCase(email)) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "Username or email already exists.");
         }
 
         User user = new User(username, email, passwords.encode(request.password()));
@@ -129,20 +124,6 @@ public class AuthServiceImpl implements AuthService {
 
         refreshTokens.findByTokenHash(hash)
                 .ifPresent(token -> refreshTokens.deleteFamily(token.getFamilyId()));
-    }
-
-    @Override
-    @Transactional
-    public UserResponse me(String subject) {
-        UUID userId;
-        try {
-            userId = UUID.fromString(subject);
-        } catch (IllegalArgumentException | NullPointerException exception) {
-            throw unauthorized("Invalid access token.");
-        }
-        return users.findForProfileById(userId)
-                .map(responses::from)
-                .orElseThrow(() -> unauthorized("User no longer exists."));
     }
 
     private AuthResponse issueTokens(User user, UUID familyId) {
