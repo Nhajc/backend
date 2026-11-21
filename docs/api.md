@@ -4,7 +4,7 @@
 - auth: `Bearer <accessToken>` (15 min); refresh token 30 days, rotated each use, reuse revokes its family.
 - Access: **P** public · **U** user · **A** admin.
 - Paging: `page=0`, `size=20` (1–100). Enums are UPPERCASE.
-- JSON requests: send every field; only `|null` fields may be `null`. `PUT` replaces the whole object.
+- JSON requests: send every field. `T?` = may be `null`; in multipart, `null` = leave the part out. `PUT` replaces the whole object.
 - Image uploads: JPEG/PNG ≤ 5 MB; in JSON as `data:image/jpeg|png;base64,…` (`null` = no image). 400 invalid image, 413 too large, 503 storage down.
 - Image responses: `avatarUrl` / `coverUrl` = presigned URL, used as given, or `null`. Valid 1 h; refetch the resource for a new one.
 
@@ -73,30 +73,30 @@
 RegisterRequest         { username, email, password }
 LoginRequest            { usernameOrEmail, password }
 RefreshTokenRequest     { refreshToken }
-UpdateProfileRequest    { avatar?: file }
+UpdateProfileRequest    { avatar: file? }
 PlaylistRequest         { title, isPrivate }
 CommentRequest          { content }
-ArtistRequest           { name, avatarDataUri: string|null }
+ArtistRequest           { name, avatarDataUri: string? }
 GenreRequest            { name }
-ReleaseRequest          { title, releaseType, releaseDate, artistIds, genreIds, coverDataUri: string|null }
+ReleaseRequest          { title, releaseType, releaseDate, artistIds, genreIds, coverDataUri: string? }
 UploadSongRequest       { trackNumber, title, file }
 
 AuthResponse            { accessToken, refreshToken, user: UserResponse }
-UserResponse            { id, username, email, createdAt, role: USER|ADMIN, avatarUrl: string|null }
-UserSummaryResponse     { id, username, avatarUrl: string|null }
+UserResponse            { id, username, email, createdAt, role: USER|ADMIN, avatarUrl: string? }
+UserSummaryResponse     { id, username, avatarUrl: string? }
 PageResponse<T>         { content: T[], hasNext }
 
-ArtistSummaryResponse   { id, name, avatarUrl: string|null }
+ArtistSummaryResponse   { id, name, avatarUrl: string? }
 ArtistResponse          { ...ArtistSummaryResponse, isFollowed, releases: ReleaseSummaryResponse[] }
 GenreResponse           { id, name, slug }
 
-ReleaseSummaryResponse  { id, title, coverUrl: string|null, releaseType: ALBUM|SINGLE|EP|COMPILATION, releaseDate, songCount, artists: ArtistSummaryResponse[], isSaved }
+ReleaseSummaryResponse  { id, title, coverUrl: string?, releaseType: ALBUM|SINGLE|EP|COMPILATION, releaseDate, songCount, artists: ArtistSummaryResponse[], isSaved }
 ReleaseResponse         { ...ReleaseSummaryResponse, songs: SongSummaryResponse[] }
 
 SongSummaryResponse     { id, title, durationSeconds, trackNumber, artists: ArtistSummaryResponse[], isFavorited }
-SongResponse            { ...SongSummaryResponse, releaseId, releaseTitle, coverUrl: string|null }
+SongResponse            { ...SongSummaryResponse, releaseId, releaseTitle, coverUrl: string? }
 
-PlaylistSummaryResponse { id, title, coverUrl: string|null, isPrivate, owner: UserSummaryResponse, songCount, isSaved }
+PlaylistSummaryResponse { id, title, coverUrl: string?, isPrivate, owner: UserSummaryResponse, songCount, isSaved }
 PlaylistResponse        { ...PlaylistSummaryResponse, songs: SongResponse[] }
 
 CommentResponse         { id, content, commentedAt, user: UserSummaryResponse, replyCount }
