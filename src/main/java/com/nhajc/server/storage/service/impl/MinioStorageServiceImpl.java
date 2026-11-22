@@ -16,6 +16,8 @@ import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayInputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 @Service
 public class MinioStorageServiceImpl implements ObjectStorageService {
@@ -26,10 +28,10 @@ public class MinioStorageServiceImpl implements ObjectStorageService {
 
     public MinioStorageServiceImpl(@Qualifier("minioClient") MinioClient client,
                                   @Qualifier("minioPublicClient") MinioClient publicClient,
-                                  @Value("${S3_BUCKET}") String bucket,
-                                  @Value("${S3_URL_EXPIRY_SECONDS}") int urlExpirySeconds) {
+                                  @Value("${MINIO_BUCKET}") String bucket,
+                                  @Value("${MINIO_URL_EXPIRY_SECONDS}") int urlExpirySeconds) {
         if (urlExpirySeconds < 1 || urlExpirySeconds > 604800) {
-            throw new IllegalArgumentException("S3_URL_EXPIRY_SECONDS must be between 1 and 604800.");
+            throw new IllegalArgumentException("MINIO_URL_EXPIRY_SECONDS must be between 1 and 604800.");
         }
         this.client = client;
         this.publicClient = publicClient;
@@ -46,6 +48,16 @@ public class MinioStorageServiceImpl implements ObjectStorageService {
                     .stream(input, (long) data.length, -1L)
                     .contentType(contentType)
                     .build());
+        } catch (Exception exception) {
+            throw new ObjectStorageException("Unable to upload object.", exception);
+        }
+    }
+
+    @Override
+    public void upload(String key, Path file, String contentType) {
+        try (var input = Files.newInputStream(file)) {
+            client.putObject(PutObjectArgs.builder().bucket(bucket).object(key)
+                    .stream(input, Files.size(file), -1L).contentType(contentType).build());
         } catch (Exception exception) {
             throw new ObjectStorageException("Unable to upload object.", exception);
         }

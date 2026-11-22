@@ -1,8 +1,9 @@
 {
   "info": {
-    "name": "Nhajc API",
+    "_postman_id": "088a72f0-f366-44bc-97a5-2a95fd229925",
+    "name": "Nhajc API - Auth & Users",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "description": "7 sample requests for the 6 implemented Auth and Users APIs. Import the Nhajc Local environment, select it, and fill baseUrl, username, email, password (new ones to register). Register, login and refresh save the tokens; logout clears them. Running the whole collection updates and removes the avatar and logs out, so use a test account. Upload is skipped until a file is picked. When running one request alone, call Login first."
+    "description": "19 request cho 6 API đã có trong code. Import cùng Nhajc Local rồi chọn environment. Chạy theo thứ tự hoặc Run collection; mặc định Register tự tạo tài khoản thử mới. Token tự lưu và được dùng cho Users. Upload avatar bỏ qua nếu chưa chọn file. Chạy toàn bộ sẽ xóa avatar của tài khoản thử và logout phiên cuối. Để dùng tài khoản có sẵn: autoGenerateUser=false, điền username/email/password rồi bắt đầu từ Login. Các API Admin, đọc thể loại, phát audio và xóa comment nằm trong collection Nhajc-admin.postman_collection.json riêng. Xem README.md trong cùng thư mục."
   },
   "auth": {
     "type": "bearer",
@@ -14,12 +15,38 @@
       }
     ]
   },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "if (!pm.environment.get(\"baseUrl\")) throw new Error(\"Chọn environment Nhajc Local trước khi gửi request.\");"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "if (pm.response.code >= 400) {",
+          "    pm.test(\"Lỗi trả ProblemDetail\", function () {",
+          "        const problem = pm.response.json();",
+          "        pm.expect(problem.status).to.eql(pm.response.code);",
+          "        pm.expect(problem.detail).to.be.a(\"string\").and.not.empty;",
+          "    });",
+          "}"
+        ]
+      }
+    }
+  ],
   "item": [
     {
-      "name": "Auth",
+      "name": "01 - Auth",
       "item": [
         {
-          "name": "Register",
+          "name": "01 - Register",
           "request": {
             "auth": {
               "type": "noauth"
@@ -41,29 +68,63 @@
               }
             },
             "url": "{{baseUrl}}/api/v1/auth/register",
-            "description": "Creates a USER account and returns tokens. 201 on success, 409 username or email taken, 400 invalid data. Fill a new test account in the environment."
+            "description": "Tạo tài khoản USER. autoGenerateUser=true sẽ tạo username/email/password mới và lưu vào environment mỗi lần gửi request này. Nếu muốn tự nhập thông tin, đặt autoGenerateUser=false. Username 3–50 ký tự, không @/khoảng trắng; email tối đa 254 ký tự; mật khẩu 12–72 ký tự và tối đa 72 byte UTF-8. Trả 201 và tự lưu token."
           },
           "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (String(pm.environment.get(\"autoGenerateUser\")).toLowerCase() === \"true\") {",
+                  "    const suffix = pm.variables.replaceIn(\"{{$guid}}\").replace(/-/g, \"\").slice(0, 16);",
+                  "    const username = \"nhajc_\" + suffix;",
+                  "    pm.environment.set(\"username\", username);",
+                  "    pm.environment.set(\"email\", username + \"@example.com\");",
+                  "    pm.environment.set(\"password\", \"Test!\" + pm.variables.replaceIn(\"{{$guid}}\"));",
+                  "}",
+                  "[\"username\", \"email\", \"password\"].forEach(function (key) {",
+                  "    if (!pm.environment.get(key)) throw new Error(\"Điền \" + key + \" trong Nhajc Local hoặc đặt autoGenerateUser=true.\");",
+                  "});",
+                  "// Serialize sau khi thay biến để mật khẩu chứa dấu nháy vẫn tạo JSON hợp lệ.",
+                  "const payload = JSON.parse(pm.request.body.raw);",
+                  "Object.keys(payload).forEach(function (key) {",
+                  "    if (typeof payload[key] === \"string\") payload[key] = pm.variables.replaceIn(payload[key]);",
+                  "});",
+                  "pm.request.body.update(JSON.stringify(payload));"
+                ]
+              }
+            },
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"HTTP 201\", function () {",
-                  "    pm.response.to.have.status(201);",
-                  "});",
+                  "pm.test(\"HTTP 201\", function () { pm.response.to.have.status(201); });",
                   "if (pm.response.code === 201) {",
                   "    const body = pm.response.json();",
-                  "    pm.test(\"Response has the tokens and the account\", function () {",
+                  "    pm.test(\"Có access token và refresh token\", function () {",
+                  "        pm.expect(body).to.have.all.keys(\"accessToken\", \"refreshToken\", \"user\");",
                   "        pm.expect(body.accessToken).to.be.a(\"string\").and.not.empty;",
-                  "        pm.expect(body.refreshToken).to.be.a(\"string\").and.not.empty;",
-                  "        pm.expect(body.user).to.have.property(\"id\");",
-                  "        pm.expect(body.user).to.have.property(\"avatarUrl\");",
+                  "        pm.expect(body.accessToken.split(\".\")).to.have.lengthOf(3);",
+                  "        pm.expect(body.refreshToken).to.match(/^[A-Za-z0-9_-]{43}$/);",
                   "    });",
+                  "    const user = body.user;",
+                  "pm.test(\"UserResponse đúng hợp đồng\", function () {",
+                  "    pm.expect(user).to.have.all.keys(\"id\", \"username\", \"email\", \"createdAt\", \"role\", \"avatarUrl\");",
+                  "    pm.expect(user.id).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);",
+                  "    pm.expect(user.username).to.be.a(\"string\").and.not.empty;",
+                  "    pm.expect(user.email).to.be.a(\"string\").and.not.empty;",
+                  "    pm.expect([\"USER\", \"ADMIN\"]).to.include(user.role);",
+                  "    pm.expect(Number.isNaN(Date.parse(user.createdAt))).to.eql(false);",
+                  "});",
+                  "pm.test(\"Avatar là URL hoặc null\", function () {",
+                  "    pm.expect(user.avatarUrl === null || (typeof user.avatarUrl === \"string\" && /^https?:\\/\\//.test(user.avatarUrl))).to.eql(true);",
+                  "});",
+                  "pm.environment.set(\"userId\", user.id);",
+                  "pm.environment.set(\"avatarUrl\", user.avatarUrl || \"\");",
                   "    pm.environment.set(\"accessToken\", body.accessToken);",
                   "    pm.environment.set(\"refreshToken\", body.refreshToken);",
-                  "    pm.environment.set(\"userId\", body.user.id);",
-                  "    pm.environment.set(\"avatarUrl\", body.user.avatarUrl || \"\");",
                   "}"
                 ]
               }
@@ -71,7 +132,7 @@
           ]
         },
         {
-          "name": "Login",
+          "name": "02 - Login bằng username",
           "request": {
             "auth": {
               "type": "noauth"
@@ -93,29 +154,53 @@
               }
             },
             "url": "{{baseUrl}}/api/v1/auth/login",
-            "description": "Logs in with username or email. 200 on success, 401 bad credentials. Saves the tokens to the environment."
+            "description": "Đăng nhập tài khoản trong environment. Dùng được với tài khoản đã có, kể cả mật khẩu cũ ngắn hơn 12 ký tự. Tự thay accessToken/refreshToken."
           },
           "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Serialize sau khi thay biến để mật khẩu chứa dấu nháy vẫn tạo JSON hợp lệ.",
+                  "const payload = JSON.parse(pm.request.body.raw);",
+                  "Object.keys(payload).forEach(function (key) {",
+                  "    if (typeof payload[key] === \"string\") payload[key] = pm.variables.replaceIn(payload[key]);",
+                  "});",
+                  "pm.request.body.update(JSON.stringify(payload));"
+                ]
+              }
+            },
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"HTTP 200\", function () {",
-                  "    pm.response.to.have.status(200);",
-                  "});",
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
                   "if (pm.response.code === 200) {",
                   "    const body = pm.response.json();",
-                  "    pm.test(\"Response has the tokens and the account\", function () {",
+                  "    pm.test(\"Có access token và refresh token\", function () {",
+                  "        pm.expect(body).to.have.all.keys(\"accessToken\", \"refreshToken\", \"user\");",
                   "        pm.expect(body.accessToken).to.be.a(\"string\").and.not.empty;",
-                  "        pm.expect(body.refreshToken).to.be.a(\"string\").and.not.empty;",
-                  "        pm.expect(body.user).to.have.property(\"id\");",
-                  "        pm.expect(body.user).to.have.property(\"avatarUrl\");",
+                  "        pm.expect(body.accessToken.split(\".\")).to.have.lengthOf(3);",
+                  "        pm.expect(body.refreshToken).to.match(/^[A-Za-z0-9_-]{43}$/);",
                   "    });",
+                  "    const user = body.user;",
+                  "pm.test(\"UserResponse đúng hợp đồng\", function () {",
+                  "    pm.expect(user).to.have.all.keys(\"id\", \"username\", \"email\", \"createdAt\", \"role\", \"avatarUrl\");",
+                  "    pm.expect(user.id).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);",
+                  "    pm.expect(user.username).to.be.a(\"string\").and.not.empty;",
+                  "    pm.expect(user.email).to.be.a(\"string\").and.not.empty;",
+                  "    pm.expect([\"USER\", \"ADMIN\"]).to.include(user.role);",
+                  "    pm.expect(Number.isNaN(Date.parse(user.createdAt))).to.eql(false);",
+                  "});",
+                  "pm.test(\"Avatar là URL hoặc null\", function () {",
+                  "    pm.expect(user.avatarUrl === null || (typeof user.avatarUrl === \"string\" && /^https?:\\/\\//.test(user.avatarUrl))).to.eql(true);",
+                  "});",
+                  "pm.environment.set(\"userId\", user.id);",
+                  "pm.environment.set(\"avatarUrl\", user.avatarUrl || \"\");",
                   "    pm.environment.set(\"accessToken\", body.accessToken);",
                   "    pm.environment.set(\"refreshToken\", body.refreshToken);",
-                  "    pm.environment.set(\"userId\", body.user.id);",
-                  "    pm.environment.set(\"avatarUrl\", body.user.avatarUrl || \"\");",
                   "}"
                 ]
               }
@@ -123,7 +208,83 @@
           ]
         },
         {
-          "name": "Refresh tokens",
+          "name": "03 - Login bằng email",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"usernameOrEmail\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "description": "Đăng nhập bằng email, tự lưu bộ token mới. Username/email không phân biệt hoa thường."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Serialize sau khi thay biến để mật khẩu chứa dấu nháy vẫn tạo JSON hợp lệ.",
+                  "const payload = JSON.parse(pm.request.body.raw);",
+                  "Object.keys(payload).forEach(function (key) {",
+                  "    if (typeof payload[key] === \"string\") payload[key] = pm.variables.replaceIn(payload[key]);",
+                  "});",
+                  "pm.request.body.update(JSON.stringify(payload));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code === 200) {",
+                  "    const body = pm.response.json();",
+                  "    pm.test(\"Có access token và refresh token\", function () {",
+                  "        pm.expect(body).to.have.all.keys(\"accessToken\", \"refreshToken\", \"user\");",
+                  "        pm.expect(body.accessToken).to.be.a(\"string\").and.not.empty;",
+                  "        pm.expect(body.accessToken.split(\".\")).to.have.lengthOf(3);",
+                  "        pm.expect(body.refreshToken).to.match(/^[A-Za-z0-9_-]{43}$/);",
+                  "    });",
+                  "    const user = body.user;",
+                  "pm.test(\"UserResponse đúng hợp đồng\", function () {",
+                  "    pm.expect(user).to.have.all.keys(\"id\", \"username\", \"email\", \"createdAt\", \"role\", \"avatarUrl\");",
+                  "    pm.expect(user.id).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);",
+                  "    pm.expect(user.username).to.be.a(\"string\").and.not.empty;",
+                  "    pm.expect(user.email).to.be.a(\"string\").and.not.empty;",
+                  "    pm.expect([\"USER\", \"ADMIN\"]).to.include(user.role);",
+                  "    pm.expect(Number.isNaN(Date.parse(user.createdAt))).to.eql(false);",
+                  "});",
+                  "pm.test(\"Avatar là URL hoặc null\", function () {",
+                  "    pm.expect(user.avatarUrl === null || (typeof user.avatarUrl === \"string\" && /^https?:\\/\\//.test(user.avatarUrl))).to.eql(true);",
+                  "});",
+                  "pm.environment.set(\"userId\", user.id);",
+                  "pm.environment.set(\"avatarUrl\", user.avatarUrl || \"\");",
+                  "    pm.environment.set(\"accessToken\", body.accessToken);",
+                  "    pm.environment.set(\"refreshToken\", body.refreshToken);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "04 - Refresh tokens",
           "request": {
             "auth": {
               "type": "noauth"
@@ -145,34 +306,55 @@
               }
             },
             "url": "{{baseUrl}}/api/v1/auth/refresh",
-            "description": "Sends the current refresh token. 200 replaces both saved tokens. An expired or already used token returns 401 and revokes that session's tokens."
+            "description": "Gửi refresh token hiện tại, tự thay cả hai token. Token cũ chỉ được dùng một lần. Nếu thất bại 401, đăng nhập lại."
           },
           "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Serialize sau khi thay biến để mật khẩu chứa dấu nháy vẫn tạo JSON hợp lệ.",
+                  "const payload = JSON.parse(pm.request.body.raw);",
+                  "Object.keys(payload).forEach(function (key) {",
+                  "    if (typeof payload[key] === \"string\") payload[key] = pm.variables.replaceIn(payload[key]);",
+                  "});",
+                  "pm.request.body.update(JSON.stringify(payload));"
+                ]
+              }
+            },
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"HTTP 200\", function () {",
-                  "    pm.response.to.have.status(200);",
-                  "});",
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
                   "if (pm.response.code === 200) {",
                   "    const body = pm.response.json();",
-                  "    pm.test(\"Response has the tokens and the account\", function () {",
+                  "    pm.test(\"Có access token và refresh token\", function () {",
+                  "        pm.expect(body).to.have.all.keys(\"accessToken\", \"refreshToken\", \"user\");",
                   "        pm.expect(body.accessToken).to.be.a(\"string\").and.not.empty;",
-                  "        pm.expect(body.refreshToken).to.be.a(\"string\").and.not.empty;",
-                  "        pm.expect(body.user).to.have.property(\"id\");",
-                  "        pm.expect(body.user).to.have.property(\"avatarUrl\");",
+                  "        pm.expect(body.accessToken.split(\".\")).to.have.lengthOf(3);",
+                  "        pm.expect(body.refreshToken).to.match(/^[A-Za-z0-9_-]{43}$/);",
                   "    });",
+                  "    const user = body.user;",
+                  "pm.test(\"UserResponse đúng hợp đồng\", function () {",
+                  "    pm.expect(user).to.have.all.keys(\"id\", \"username\", \"email\", \"createdAt\", \"role\", \"avatarUrl\");",
+                  "    pm.expect(user.id).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);",
+                  "    pm.expect(user.username).to.be.a(\"string\").and.not.empty;",
+                  "    pm.expect(user.email).to.be.a(\"string\").and.not.empty;",
+                  "    pm.expect([\"USER\", \"ADMIN\"]).to.include(user.role);",
+                  "    pm.expect(Number.isNaN(Date.parse(user.createdAt))).to.eql(false);",
+                  "});",
+                  "pm.test(\"Avatar là URL hoặc null\", function () {",
+                  "    pm.expect(user.avatarUrl === null || (typeof user.avatarUrl === \"string\" && /^https?:\\/\\//.test(user.avatarUrl))).to.eql(true);",
+                  "});",
+                  "pm.environment.set(\"userId\", user.id);",
+                  "pm.environment.set(\"avatarUrl\", user.avatarUrl || \"\");",
                   "    pm.environment.set(\"accessToken\", body.accessToken);",
                   "    pm.environment.set(\"refreshToken\", body.refreshToken);",
-                  "    pm.environment.set(\"userId\", body.user.id);",
-                  "    pm.environment.set(\"avatarUrl\", body.user.avatarUrl || \"\");",
                   "}",
-                  "if (pm.response.code === 401) {",
-                  "    pm.environment.unset(\"accessToken\");",
-                  "    pm.environment.unset(\"refreshToken\");",
-                  "}"
+                  "if (pm.response.code === 401) { pm.environment.unset(\"accessToken\"); pm.environment.unset(\"refreshToken\"); }"
                 ]
               }
             }
@@ -181,15 +363,15 @@
       ]
     },
     {
-      "name": "Users",
+      "name": "02 - Users",
       "item": [
         {
-          "name": "Get my profile",
+          "name": "05 - Get my profile",
           "request": {
             "method": "GET",
             "header": [],
             "url": "{{baseUrl}}/api/v1/users/me",
-            "description": "Gets the logged-in account. avatarUrl is a presigned URL (valid 1 hour by default) or null, and is saved to the environment's avatarUrl."
+            "description": "Tự dùng Bearer {{accessToken}} kế thừa từ collection. Trả UserResponse và lưu avatarUrl vào environment."
           },
           "event": [
             {
@@ -197,28 +379,28 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"HTTP 200\", function () {",
-                  "    pm.response.to.have.status(200);",
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code === 200) { const user = pm.response.json();",
+                  "pm.test(\"UserResponse đúng hợp đồng\", function () {",
+                  "    pm.expect(user).to.have.all.keys(\"id\", \"username\", \"email\", \"createdAt\", \"role\", \"avatarUrl\");",
+                  "    pm.expect(user.id).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);",
+                  "    pm.expect(user.username).to.be.a(\"string\").and.not.empty;",
+                  "    pm.expect(user.email).to.be.a(\"string\").and.not.empty;",
+                  "    pm.expect([\"USER\", \"ADMIN\"]).to.include(user.role);",
+                  "    pm.expect(Number.isNaN(Date.parse(user.createdAt))).to.eql(false);",
                   "});",
-                  "if (pm.response.code === 200) {",
-                  "    const body = pm.response.json();",
-                  "    pm.test(\"Response has the account and avatar\", function () {",
-                  "        pm.expect(body).to.have.all.keys(\"id\", \"username\", \"email\", \"createdAt\", \"role\", \"avatarUrl\");",
-                  "    });",
-                  "    pm.test(\"Avatar is a presigned URL or null\", function () {",
-                  "        const valid = body.avatarUrl === null || (typeof body.avatarUrl === \"string\" && /^https?:\\/\\//.test(body.avatarUrl));",
-                  "        pm.expect(valid).to.eql(true);",
-                  "    });",
-                  "    pm.environment.set(\"userId\", body.id);",
-                  "    pm.environment.set(\"avatarUrl\", body.avatarUrl || \"\");",
-                  "}"
+                  "pm.test(\"Avatar là URL hoặc null\", function () {",
+                  "    pm.expect(user.avatarUrl === null || (typeof user.avatarUrl === \"string\" && /^https?:\\/\\//.test(user.avatarUrl))).to.eql(true);",
+                  "});",
+                  "pm.environment.set(\"userId\", user.id);",
+                  "pm.environment.set(\"avatarUrl\", user.avatarUrl || \"\"); }"
                 ]
               }
             }
           ]
         },
         {
-          "name": "Upload avatar",
+          "name": "06 - Upload avatar",
           "request": {
             "method": "PUT",
             "header": [],
@@ -239,7 +421,7 @@
                 }
               ]
             },
-            "description": "Pick a file in Body → form-data → avatar; Postman sets the Content-Type and boundary. 200 on success, 400 invalid image, 413 over 5 MB. Skipped until a file is picked, so the avatar isn't removed by accident."
+            "description": "Body → form-data → avatar → Select Files: chọn JPEG/PNG tối đa 5 MB. Không tự đặt Content-Type; Postman thêm boundary. Nếu chưa chọn file, request tự bỏ qua. Trả 200 và avatarUrl ký sẵn. Dán URL vào trình duyệt để xem ảnh."
           },
           "event": [
             {
@@ -263,25 +445,23 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"HTTP 200\", function () {",
-                  "    pm.response.to.have.status(200);",
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code === 200) {",
+                  "    const user = pm.response.json();",
+                  "pm.test(\"UserResponse đúng hợp đồng\", function () {",
+                  "    pm.expect(user).to.have.all.keys(\"id\", \"username\", \"email\", \"createdAt\", \"role\", \"avatarUrl\");",
+                  "    pm.expect(user.id).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);",
+                  "    pm.expect(user.username).to.be.a(\"string\").and.not.empty;",
+                  "    pm.expect(user.email).to.be.a(\"string\").and.not.empty;",
+                  "    pm.expect([\"USER\", \"ADMIN\"]).to.include(user.role);",
+                  "    pm.expect(Number.isNaN(Date.parse(user.createdAt))).to.eql(false);",
                   "});",
-                  "if (pm.response.code === 200) {",
-                  "    const body = pm.response.json();",
-                  "    pm.test(\"Response has the account and avatar\", function () {",
-                  "        pm.expect(body).to.have.all.keys(\"id\", \"username\", \"email\", \"createdAt\", \"role\", \"avatarUrl\");",
-                  "    });",
-                  "    pm.test(\"Avatar is a presigned URL or null\", function () {",
-                  "        const valid = body.avatarUrl === null || (typeof body.avatarUrl === \"string\" && /^https?:\\/\\//.test(body.avatarUrl));",
-                  "        pm.expect(valid).to.eql(true);",
-                  "    });",
-                  "    pm.environment.set(\"userId\", body.id);",
-                  "    pm.environment.set(\"avatarUrl\", body.avatarUrl || \"\");",
-                  "}",
-                  "if (pm.response.code === 200) {",
-                  "    pm.test(\"Upload returns an avatar URL\", function () {",
-                  "        pm.expect(typeof pm.response.json().avatarUrl === \"string\").to.eql(true);",
-                  "    });",
+                  "pm.test(\"Avatar là URL hoặc null\", function () {",
+                  "    pm.expect(user.avatarUrl === null || (typeof user.avatarUrl === \"string\" && /^https?:\\/\\//.test(user.avatarUrl))).to.eql(true);",
+                  "});",
+                  "pm.environment.set(\"userId\", user.id);",
+                  "pm.environment.set(\"avatarUrl\", user.avatarUrl || \"\");",
+                  "    pm.test(\"Upload trả URL ký sẵn\", function () { pm.expect(user.avatarUrl).to.be.a(\"string\").and.not.empty; });",
                   "}"
                 ]
               }
@@ -289,7 +469,7 @@
           ]
         },
         {
-          "name": "Remove avatar",
+          "name": "07 - Remove avatar",
           "request": {
             "method": "PUT",
             "header": [],
@@ -304,7 +484,7 @@
                 }
               ]
             },
-            "description": "Removes the logged-in account's avatar: a profile PUT with _charset_=UTF-8 and no avatar file part. 200 with avatarUrl=null."
+            "description": "Cập nhật hồ sơ bằng multipart chỉ có _charset_=UTF-8 và không có part avatar. Trả 200 với avatarUrl=null. Đây là cùng API PUT /users/me, không phải endpoint ảnh riêng."
           },
           "event": [
             {
@@ -312,25 +492,23 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"HTTP 200\", function () {",
-                  "    pm.response.to.have.status(200);",
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code === 200) {",
+                  "    const user = pm.response.json();",
+                  "pm.test(\"UserResponse đúng hợp đồng\", function () {",
+                  "    pm.expect(user).to.have.all.keys(\"id\", \"username\", \"email\", \"createdAt\", \"role\", \"avatarUrl\");",
+                  "    pm.expect(user.id).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);",
+                  "    pm.expect(user.username).to.be.a(\"string\").and.not.empty;",
+                  "    pm.expect(user.email).to.be.a(\"string\").and.not.empty;",
+                  "    pm.expect([\"USER\", \"ADMIN\"]).to.include(user.role);",
+                  "    pm.expect(Number.isNaN(Date.parse(user.createdAt))).to.eql(false);",
                   "});",
-                  "if (pm.response.code === 200) {",
-                  "    const body = pm.response.json();",
-                  "    pm.test(\"Response has the account and avatar\", function () {",
-                  "        pm.expect(body).to.have.all.keys(\"id\", \"username\", \"email\", \"createdAt\", \"role\", \"avatarUrl\");",
-                  "    });",
-                  "    pm.test(\"Avatar is a presigned URL or null\", function () {",
-                  "        const valid = body.avatarUrl === null || (typeof body.avatarUrl === \"string\" && /^https?:\\/\\//.test(body.avatarUrl));",
-                  "        pm.expect(valid).to.eql(true);",
-                  "    });",
-                  "    pm.environment.set(\"userId\", body.id);",
-                  "    pm.environment.set(\"avatarUrl\", body.avatarUrl || \"\");",
-                  "}",
-                  "if (pm.response.code === 200) {",
-                  "    pm.test(\"Avatar was removed\", function () {",
-                  "        pm.expect(pm.response.json().avatarUrl).to.eql(null);",
-                  "    });",
+                  "pm.test(\"Avatar là URL hoặc null\", function () {",
+                  "    pm.expect(user.avatarUrl === null || (typeof user.avatarUrl === \"string\" && /^https?:\\/\\//.test(user.avatarUrl))).to.eql(true);",
+                  "});",
+                  "pm.environment.set(\"userId\", user.id);",
+                  "pm.environment.set(\"avatarUrl\", user.avatarUrl || \"\");",
+                  "    pm.test(\"Avatar đã được xóa\", function () { pm.expect(user.avatarUrl).to.eql(null); });",
                   "}"
                 ]
               }
@@ -340,46 +518,587 @@
       ]
     },
     {
-      "name": "Logout",
-      "request": {
-        "auth": {
-          "type": "noauth"
-        },
-        "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
-        ],
-        "url": "{{baseUrl}}/api/v1/auth/logout",
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}",
-          "options": {
-            "raw": {
-              "language": "json"
-            }
-          }
-        },
-        "description": "Revokes this session's refresh tokens. 204 with an empty body, and the saved tokens are cleared. Access tokens already issued stay valid until they expire."
-      },
-      "event": [
+      "name": "03 - Kiểm tra lỗi",
+      "item": [
         {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.test(\"HTTP 204\", function () {",
-              "    pm.response.to.have.status(204);",
-              "});",
-              "if (pm.response.code === 204) {",
-              "    [\"accessToken\", \"refreshToken\", \"userId\", \"avatarUrl\"].forEach(function (key) {",
-              "        pm.environment.unset(key);",
-              "    });",
-              "}"
-            ]
-          }
+          "name": "08 - Register trùng tài khoản → 409",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{username}}\",\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/auth/register",
+            "description": "Chạy sau Register. Gửi lại cùng thông tin trong environment, không tạo tài khoản mới."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Serialize sau khi thay biến để mật khẩu chứa dấu nháy vẫn tạo JSON hợp lệ.",
+                  "const payload = JSON.parse(pm.request.body.raw);",
+                  "Object.keys(payload).forEach(function (key) {",
+                  "    if (typeof payload[key] === \"string\") payload[key] = pm.variables.replaceIn(payload[key]);",
+                  "});",
+                  "pm.request.body.update(JSON.stringify(payload));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 409\", function () { pm.response.to.have.status(409); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "09 - Username chứa @ → 400",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"invalid@username\",\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/auth/register",
+            "description": "Kiểm tra quy tắc username mới không chứa @."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Serialize sau khi thay biến để mật khẩu chứa dấu nháy vẫn tạo JSON hợp lệ.",
+                  "const payload = JSON.parse(pm.request.body.raw);",
+                  "Object.keys(payload).forEach(function (key) {",
+                  "    if (typeof payload[key] === \"string\") payload[key] = pm.variables.replaceIn(payload[key]);",
+                  "});",
+                  "pm.request.body.update(JSON.stringify(payload));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 400\", function () { pm.response.to.have.status(400); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "10 - Email sai định dạng → 400",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{username}}\",\n  \"email\": \"not-an-email\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/auth/register",
+            "description": "Kiểm tra validation email trước khi gọi service."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Serialize sau khi thay biến để mật khẩu chứa dấu nháy vẫn tạo JSON hợp lệ.",
+                  "const payload = JSON.parse(pm.request.body.raw);",
+                  "Object.keys(payload).forEach(function (key) {",
+                  "    if (typeof payload[key] === \"string\") payload[key] = pm.variables.replaceIn(payload[key]);",
+                  "});",
+                  "pm.request.body.update(JSON.stringify(payload));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 400\", function () { pm.response.to.have.status(400); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "11 - Mật khẩu đăng ký ngắn → 400",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{username}}\",\n  \"email\": \"{{email}}\",\n  \"password\": \"short\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/auth/register",
+            "description": "Đăng ký mới yêu cầu tối thiểu 12 ký tự. Login với mật khẩu cũ vẫn được chấp nhận."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Serialize sau khi thay biến để mật khẩu chứa dấu nháy vẫn tạo JSON hợp lệ.",
+                  "const payload = JSON.parse(pm.request.body.raw);",
+                  "Object.keys(payload).forEach(function (key) {",
+                  "    if (typeof payload[key] === \"string\") payload[key] = pm.variables.replaceIn(payload[key]);",
+                  "});",
+                  "pm.request.body.update(JSON.stringify(payload));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 400\", function () { pm.response.to.have.status(400); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "12 - Mật khẩu vượt 72 byte UTF-8 → 400",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{username}}\",\n  \"email\": \"{{email}}\",\n  \"password\": \"€€€€€€€€€€€€€€€€€€€€€€€€€\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/auth/register",
+            "description": "25 ký tự € là 75 byte UTF-8. Kiểm tra giới hạn byte của BCrypt, khác với số ký tự."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Serialize sau khi thay biến để mật khẩu chứa dấu nháy vẫn tạo JSON hợp lệ.",
+                  "const payload = JSON.parse(pm.request.body.raw);",
+                  "Object.keys(payload).forEach(function (key) {",
+                  "    if (typeof payload[key] === \"string\") payload[key] = pm.variables.replaceIn(payload[key]);",
+                  "});",
+                  "pm.request.body.update(JSON.stringify(payload));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 400\", function () { pm.response.to.have.status(400); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "13 - Login sai mật khẩu → 401",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"usernameOrEmail\": \"{{username}}\",\n  \"password\": \"wrong_{{$guid}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "description": "Trả cùng thông báo như tài khoản không tồn tại. Không thay token đang dùng."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Serialize sau khi thay biến để mật khẩu chứa dấu nháy vẫn tạo JSON hợp lệ.",
+                  "const payload = JSON.parse(pm.request.body.raw);",
+                  "Object.keys(payload).forEach(function (key) {",
+                  "    if (typeof payload[key] === \"string\") payload[key] = pm.variables.replaceIn(payload[key]);",
+                  "});",
+                  "pm.request.body.update(JSON.stringify(payload));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 401\", function () { pm.response.to.have.status(401); });",
+                  "pm.test(\"Thông báo đăng nhập thống nhất\", function () {",
+                  "    pm.expect(pm.response.json().detail).to.eql(\"Invalid username, email or password.\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "14 - Login tài khoản không tồn tại → 401",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"usernameOrEmail\": \"missing_{{$guid}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "description": "Tên ngẫu nhiên chưa đăng ký. Trả cùng thông báo với sai mật khẩu. Không đo thời gian tuyệt đối trong Postman."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Serialize sau khi thay biến để mật khẩu chứa dấu nháy vẫn tạo JSON hợp lệ.",
+                  "const payload = JSON.parse(pm.request.body.raw);",
+                  "Object.keys(payload).forEach(function (key) {",
+                  "    if (typeof payload[key] === \"string\") payload[key] = pm.variables.replaceIn(payload[key]);",
+                  "});",
+                  "pm.request.body.update(JSON.stringify(payload));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 401\", function () { pm.response.to.have.status(401); });",
+                  "pm.test(\"Thông báo đăng nhập thống nhất\", function () {",
+                  "    pm.expect(pm.response.json().detail).to.eql(\"Invalid username, email or password.\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "15 - Refresh token không hợp lệ → 401",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"not-a-real-refresh-token\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/auth/refresh",
+            "description": "Token giả, không ảnh hưởng phiên đăng nhập hiện tại."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Serialize sau khi thay biến để mật khẩu chứa dấu nháy vẫn tạo JSON hợp lệ.",
+                  "const payload = JSON.parse(pm.request.body.raw);",
+                  "Object.keys(payload).forEach(function (key) {",
+                  "    if (typeof payload[key] === \"string\") payload[key] = pm.variables.replaceIn(payload[key]);",
+                  "});",
+                  "pm.request.body.update(JSON.stringify(payload));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 401\", function () { pm.response.to.have.status(401); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "16 - Profile không có Bearer → 401",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/users/me",
+            "description": "Cố ý bỏ Bearer để kiểm tra API yêu cầu đăng nhập."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 401\", function () { pm.response.to.have.status(401); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "17 - Profile với JWT sai → 401",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "invalid.jwt.token",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/users/me",
+            "description": "Cố ý gửi JWT giả. Không thay token trong environment."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 401\", function () { pm.response.to.have.status(401); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "04 - Logout",
+      "item": [
+        {
+          "name": "18 - Logout",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/auth/logout",
+            "description": "Thu hồi nhóm refresh token của phiên hiện tại. Tự xóa accessToken, refreshToken, userId, avatarUrl trong environment. Tạm giữ token đã thu hồi cho request 19. Access token đã cấp vẫn có hiệu lực đến khi hết hạn."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Serialize sau khi thay biến để mật khẩu chứa dấu nháy vẫn tạo JSON hợp lệ.",
+                  "const payload = JSON.parse(pm.request.body.raw);",
+                  "Object.keys(payload).forEach(function (key) {",
+                  "    if (typeof payload[key] === \"string\") payload[key] = pm.variables.replaceIn(payload[key]);",
+                  "});",
+                  "pm.request.body.update(JSON.stringify(payload));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 204\", function () { pm.response.to.have.status(204); });",
+                  "if (pm.response.code === 204) {",
+                  "    pm.environment.set(\"loggedOutRefreshToken\", pm.environment.get(\"refreshToken\"));",
+                  "    [\"accessToken\", \"refreshToken\", \"userId\", \"avatarUrl\"].forEach(function (key) { pm.environment.unset(key); });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "19 - Refresh sau logout → 401",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{loggedOutRefreshToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/auth/refresh",
+            "description": "Chạy sau request 18. Xác nhận token vừa logout không thể dùng tiếp. Tự xóa biến tạm sau khi kiểm tra."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.environment.get(\"loggedOutRefreshToken\")) { console.info(\"Chạy request Logout trước.\"); pm.execution.skipRequest(); }",
+                  "// Serialize sau khi thay biến để mật khẩu chứa dấu nháy vẫn tạo JSON hợp lệ.",
+                  "const payload = JSON.parse(pm.request.body.raw);",
+                  "Object.keys(payload).forEach(function (key) {",
+                  "    if (typeof payload[key] === \"string\") payload[key] = pm.variables.replaceIn(payload[key]);",
+                  "});",
+                  "pm.request.body.update(JSON.stringify(payload));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 401\", function () { pm.response.to.have.status(401); });",
+                  "if (pm.response.code === 401) pm.environment.unset(\"loggedOutRefreshToken\");"
+                ]
+              }
+            }
+          ]
         }
       ]
     }
