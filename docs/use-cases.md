@@ -4,6 +4,8 @@
 - `#n` = endpoint number in [api.md](api.md).
 - Bottom bar: Home, Search, Library, Admin (admins only).
 - Top left: my avatar (#5), or the default Material 3 account icon if none → SettingsScreen.
+- Multipart requests use `data` (application/json metadata) and `file` (image or audio). Image files are optional; the FLAC file is required. On PUT, omitting the image removes it.
+- Search, library, genres and comments use page/size and return content/page/size/hasNext. Release songs, playlist songs and artist releases are complete arrays, ready for play, shuffle and reorder.
 - Images load from `avatarUrl` / `coverUrl`. Null → a default icon. After 1 h the URL expires: load the data again.
 
 ## 1. Users
@@ -25,17 +27,17 @@
 | | Audio quality | | App setting only. Low (AAC 64k), Medium (128k), High (256k), Lossless (FLAC), or Auto (by Wi-Fi / mobile data). The player sends it in #15 |
 | | Log out | #4 | Only this device |
 | AdminScreen | Menu | | Create artist, Create genre, Create release. Each opens its own screen |
-| CreateArtistScreen | Create artist | #7 | Avatar is optional |
+| CreateArtistScreen | Create artist | #7 | Multipart data: JSON {name}; file: optional avatar |
 | CreateGenreScreen | Create genre | #8 | Name must be new |
-| CreateReleaseScreen | Create release | #9 | 1–20 artists, 0–20 genres (from #14), cover optional |
+| CreateReleaseScreen | Create release | #9 | 1–20 artists, 0–20 genres (from #14, paged: read content, load next page while hasNext), optional cover in file; data contains JSON metadata with artistIds/genreIds arrays |
 | | Upload its songs | #10 | One row per song: track number, title, FLAC. Sent after #9, max 2 at a time, each row shows waiting / uploading / done / failed (retry). FLAC 16-bit, ≤ 48 kHz, mono/stereo, ≤ 200 MB, ≤ 2 h. Track number once per release. Users see a song after encoding. No cover yet → the FLAC picture becomes it |
 | ReleaseScreen | Open | #11 | Cover, type, date, artists, all songs. Song rows show the track number, not the cover |
 | | Save / unsave | #26, #27 | |
-| PlaylistScreen | Open | #12 | Cover = the first song's release cover. Private: only the owner. Others get 404 |
+| PlaylistScreen | Open | #12 | Dedicated optional cover. Private: only the owner. Others get 404 |
 | | Save / unsave | #26, #27 | Other users' public playlists only |
-| | Edit mode | #29, #32, #33 | Owner only. Rename, make public/private, remove songs, drag to reorder |
+| | Edit mode | #29, #32, #33 | Owner only. Rename, change or remove cover, make public/private, remove songs, drag to reorder |
 | | Delete | #30 | Owner only. Also the owner's "remove from library" |
-| ArtistScreen | Open | #13 | Name, avatar, all releases (newest first) |
+| ArtistScreen | Open | #13 | Name, avatar, all releases (newest release date first) |
 | | Follow / unfollow | #26, #27 | |
 | PlayerScreen | Play, seek | #15 | |
 | | Favorite / unfavorite | #26, #27 | Heart button |

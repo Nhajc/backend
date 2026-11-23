@@ -1,0 +1,694 @@
+{
+  "description": "Request examples for every collection request. Use response IDs in environment variables. Multipart has JSON data and optional image or required FLAC file.",
+  "requests": [
+    {
+      "name": "Register",
+      "method": "POST",
+      "url": "{{baseUrl}}/api/v1/auth/register",
+      "body": {
+        "mode": "raw",
+        "raw": "{\n  \"username\": \"{{username}}\",\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}",
+        "options": {
+          "raw": {
+            "language": "json"
+          }
+        }
+      }
+    },
+    {
+      "name": "Login with username",
+      "method": "POST",
+      "url": "{{baseUrl}}/api/v1/auth/login",
+      "body": {
+        "mode": "raw",
+        "raw": "{\n  \"usernameOrEmail\": \"{{username}}\",\n  \"password\": \"{{password}}\"\n}",
+        "options": {
+          "raw": {
+            "language": "json"
+          }
+        }
+      }
+    },
+    {
+      "name": "Login with email",
+      "method": "POST",
+      "url": "{{baseUrl}}/api/v1/auth/login",
+      "body": {
+        "mode": "raw",
+        "raw": "{\n  \"usernameOrEmail\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}",
+        "options": {
+          "raw": {
+            "language": "json"
+          }
+        }
+      }
+    },
+    {
+      "name": "Refresh tokens",
+      "method": "POST",
+      "url": "{{baseUrl}}/api/v1/auth/refresh",
+      "body": {
+        "mode": "raw",
+        "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}",
+        "options": {
+          "raw": {
+            "language": "json"
+          }
+        }
+      }
+    },
+    {
+      "name": "Get my profile",
+      "method": "GET",
+      "url": "{{baseUrl}}/api/v1/users/me"
+    },
+    {
+      "name": "Upload avatar",
+      "method": "PUT",
+      "url": "{{baseUrl}}/api/v1/users/me",
+      "body": {
+        "mode": "formdata",
+        "formdata": [
+          {
+            "key": "data",
+            "type": "text",
+            "value": "{}",
+            "contentType": "application/json"
+          },
+          {
+            "key": "file",
+            "type": "file",
+            "src": "docs/postman/fixtures/demo-avatar.png",
+            "description": "Optional JPEG/PNG image."
+          }
+        ]
+      }
+    },
+    {
+      "name": "Remove avatar",
+      "method": "PUT",
+      "url": "{{baseUrl}}/api/v1/users/me",
+      "body": {
+        "mode": "formdata",
+        "formdata": [
+          {
+            "key": "data",
+            "type": "text",
+            "value": "{}",
+            "contentType": "application/json"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Duplicate registration - 409",
+      "method": "POST",
+      "url": "{{baseUrl}}/api/v1/auth/register",
+      "body": {
+        "mode": "raw",
+        "raw": "{\n  \"username\": \"{{username}}\",\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}",
+        "options": {
+          "raw": {
+            "language": "json"
+          }
+        }
+      }
+    },
+    {
+      "name": "Username contains @ - 400",
+      "method": "POST",
+      "url": "{{baseUrl}}/api/v1/auth/register",
+      "body": {
+        "mode": "raw",
+        "raw": "{\n  \"username\": \"invalid@username\",\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}",
+        "options": {
+          "raw": {
+            "language": "json"
+          }
+        }
+      }
+    },
+    {
+      "name": "Invalid email - 400",
+      "method": "POST",
+      "url": "{{baseUrl}}/api/v1/auth/register",
+      "body": {
+        "mode": "raw",
+        "raw": "{\n  \"username\": \"{{username}}\",\n  \"email\": \"not-an-email\",\n  \"password\": \"{{password}}\"\n}",
+        "options": {
+          "raw": {
+            "language": "json"
+          }
+        }
+      }
+    },
+    {
+      "name": "Short registration password - 400",
+      "method": "POST",
+      "url": "{{baseUrl}}/api/v1/auth/register",
+      "body": {
+        "mode": "raw",
+        "raw": "{\n  \"username\": \"{{username}}\",\n  \"email\": \"{{email}}\",\n  \"password\": \"short\"\n}",
+        "options": {
+          "raw": {
+            "language": "json"
+          }
+        }
+      }
+    },
+    {
+      "name": "Password exceeds 72 UTF-8 bytes - 400",
+      "method": "POST",
+      "url": "{{baseUrl}}/api/v1/auth/register",
+      "body": {
+        "mode": "raw",
+        "raw": "{\n  \"username\": \"{{username}}\",\n  \"email\": \"{{email}}\",\n  \"password\": \"€€€€€€€€€€€€€€€€€€€€€€€€€\"\n}",
+        "options": {
+          "raw": {
+            "language": "json"
+          }
+        }
+      }
+    },
+    {
+      "name": "Wrong password - 401",
+      "method": "POST",
+      "url": "{{baseUrl}}/api/v1/auth/login",
+      "body": {
+        "mode": "raw",
+        "raw": "{\n  \"usernameOrEmail\": \"{{username}}\",\n  \"password\": \"wrong_{{$guid}}\"\n}",
+        "options": {
+          "raw": {
+            "language": "json"
+          }
+        }
+      }
+    },
+    {
+      "name": "Missing account - 401",
+      "method": "POST",
+      "url": "{{baseUrl}}/api/v1/auth/login",
+      "body": {
+        "mode": "raw",
+        "raw": "{\n  \"usernameOrEmail\": \"missing_{{$guid}}\",\n  \"password\": \"{{password}}\"\n}",
+        "options": {
+          "raw": {
+            "language": "json"
+          }
+        }
+      }
+    },
+    {
+      "name": "Invalid refresh token - 401",
+      "method": "POST",
+      "url": "{{baseUrl}}/api/v1/auth/refresh",
+      "body": {
+        "mode": "raw",
+        "raw": "{\n  \"refreshToken\": \"not-a-real-refresh-token\"\n}",
+        "options": {
+          "raw": {
+            "language": "json"
+          }
+        }
+      }
+    },
+    {
+      "name": "Missing bearer token - 401",
+      "method": "GET",
+      "url": "{{baseUrl}}/api/v1/users/me"
+    },
+    {
+      "name": "Invalid JWT - 401",
+      "method": "GET",
+      "url": "{{baseUrl}}/api/v1/users/me"
+    },
+    {
+      "name": "Login as admin",
+      "method": "POST",
+      "url": "{{baseUrl}}/api/v1/auth/login",
+      "body": {
+        "mode": "raw",
+        "raw": "{\n  \"usernameOrEmail\": \"{{adminUsername}}\",\n  \"password\": \"{{adminPassword}}\"\n}",
+        "options": {
+          "raw": {
+            "language": "json"
+          }
+        }
+      }
+    },
+    {
+      "name": "Create genre",
+      "method": "POST",
+      "url": "{{baseUrl}}/api/v1/admin/genres",
+      "body": {
+        "mode": "raw",
+        "raw": "{\n  \"name\": \"{{genreName}}\"\n}",
+        "options": {
+          "raw": {
+            "language": "json"
+          }
+        }
+      }
+    },
+    {
+      "name": "List genres as admin",
+      "method": "GET",
+      "url": "{{baseUrl}}/api/v1/genres?page={{genrePage}}&size={{genreSize}}"
+    },
+    {
+      "name": "Create artist",
+      "method": "POST",
+      "url": "{{baseUrl}}/api/v1/admin/artists",
+      "body": {
+        "mode": "formdata",
+        "formdata": [
+          {
+            "key": "data",
+            "type": "text",
+            "value": "{\n  \"name\": \"{{artistName}}\"\n}",
+            "contentType": "application/json"
+          },
+          {
+            "key": "file",
+            "type": "file",
+            "src": "docs/postman/fixtures/demo-avatar.png",
+            "description": "Optional JPEG/PNG image."
+          }
+        ]
+      }
+    },
+    {
+      "name": "Create release",
+      "method": "POST",
+      "url": "{{baseUrl}}/api/v1/admin/releases",
+      "body": {
+        "mode": "formdata",
+        "formdata": [
+          {
+            "key": "data",
+            "type": "text",
+            "value": "{\n  \"title\": \"{{releaseTitle}}\",\n  \"releaseType\": \"{{releaseType}}\",\n  \"releaseDate\": \"{{releaseDate}}\",\n  \"artistIds\": [\n    \"{{artistId}}\"\n  ],\n  \"genreIds\": [\n    \"{{genreId}}\"\n  ]\n}",
+            "contentType": "application/json"
+          },
+          {
+            "key": "file",
+            "type": "file",
+            "src": "docs/postman/fixtures/demo-avatar.png",
+            "description": "Optional JPEG/PNG image."
+          }
+        ]
+      }
+    },
+    {
+      "name": "Upload FLAC song",
+      "method": "POST",
+      "url": "{{baseUrl}}/api/v1/admin/releases/{{releaseId}}/songs",
+      "body": {
+        "mode": "formdata",
+        "formdata": [
+          {
+            "key": "data",
+            "type": "text",
+            "value": "{\n  \"trackNumber\": \"{{trackNumber}}\",\n  \"title\": \"{{songTitle}}\"\n}",
+            "contentType": "application/json"
+          },
+          {
+            "key": "file",
+            "type": "file",
+            "src": "docs/postman/fixtures/demo-tone.flac",
+            "description": "Required FLAC file."
+          }
+        ]
+      }
+    },
+    {
+      "name": "Audio low",
+      "method": "GET",
+      "url": "{{baseUrl}}/api/v1/songs/{{songId}}/audio/low"
+    },
+    {
+      "name": "Audio medium",
+      "method": "GET",
+      "url": "{{baseUrl}}/api/v1/songs/{{songId}}/audio/medium"
+    },
+    {
+      "name": "Audio high",
+      "method": "GET",
+      "url": "{{baseUrl}}/api/v1/songs/{{songId}}/audio/high"
+    },
+    {
+      "name": "Audio lossless",
+      "method": "GET",
+      "url": "{{baseUrl}}/api/v1/songs/{{songId}}/audio/lossless"
+    },
+    {
+      "name": "Duplicate genre - 409",
+      "method": "POST",
+      "url": "{{baseUrl}}/api/v1/admin/genres",
+      "body": {
+        "mode": "raw",
+        "raw": "{\n  \"name\": \"{{genreName}}\"\n}",
+        "options": {
+          "raw": {
+            "language": "json"
+          }
+        }
+      }
+    },
+    {
+      "name": "Release without artists - 400",
+      "method": "POST",
+      "url": "{{baseUrl}}/api/v1/admin/releases",
+      "body": {
+        "mode": "formdata",
+        "formdata": [
+          {
+            "key": "data",
+            "type": "text",
+            "value": "{\n  \"title\": \"Invalid\",\n  \"releaseType\": \"ALBUM\",\n  \"releaseDate\": \"2026-11-22\"\n}",
+            "contentType": "application/json"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Delete test comment as admin (optional)",
+      "method": "DELETE",
+      "url": "{{baseUrl}}/api/v1/comments/{{commentId}}"
+    },
+    {
+      "name": "Login as user",
+      "method": "POST",
+      "url": "{{baseUrl}}/api/v1/auth/login",
+      "body": {
+        "mode": "raw",
+        "raw": "{\n  \"usernameOrEmail\": \"{{username}}\",\n  \"password\": \"{{password}}\"\n}",
+        "options": {
+          "raw": {
+            "language": "json"
+          }
+        }
+      }
+    },
+    {
+      "name": "Get release with songs",
+      "method": "GET",
+      "url": "{{baseUrl}}/api/v1/releases/{{releaseId}}?page={{page}}&size={{size}}"
+    },
+    {
+      "name": "Get artist with releases",
+      "method": "GET",
+      "url": "{{baseUrl}}/api/v1/artists/{{artistId}}?page={{page}}&size={{size}}"
+    },
+    {
+      "name": "List genres",
+      "method": "GET",
+      "url": "{{baseUrl}}/api/v1/genres?page={{page}}&size={{size}}"
+    },
+    {
+      "name": "Search all",
+      "method": "GET",
+      "url": "{{baseUrl}}/api/v1/search?q={{q}}&page={{page}}&size={{size}}"
+    },
+    {
+      "name": "Search songs",
+      "method": "GET",
+      "url": "{{baseUrl}}/api/v1/search/songs?q={{q}}&page={{page}}&size={{size}}"
+    },
+    {
+      "name": "Search releases",
+      "method": "GET",
+      "url": "{{baseUrl}}/api/v1/search/releases?q={{q}}&page={{page}}&size={{size}}"
+    },
+    {
+      "name": "Search playlists",
+      "method": "GET",
+      "url": "{{baseUrl}}/api/v1/search/playlists?q={{q}}&page={{page}}&size={{size}}"
+    },
+    {
+      "name": "Search artists",
+      "method": "GET",
+      "url": "{{baseUrl}}/api/v1/search/artists?q={{q}}&page={{page}}&size={{size}}"
+    },
+    {
+      "name": "Audio redirect Location",
+      "method": "GET",
+      "url": "{{baseUrl}}/api/v1/songs/{{songId}}/audio/low"
+    },
+    {
+      "name": "Create private test playlist",
+      "method": "POST",
+      "url": "{{baseUrl}}/api/v1/playlists",
+      "body": {
+        "mode": "formdata",
+        "formdata": [
+          {
+            "key": "data",
+            "type": "text",
+            "value": "{\n  \"title\": \"Playlist Demo Postman\",\n  \"isPrivate\": true\n}",
+            "contentType": "application/json"
+          },
+          {
+            "key": "file",
+            "type": "file",
+            "src": "docs/postman/fixtures/demo-avatar.png",
+            "disabled": false,
+            "description": "Optional JPEG/PNG image."
+          }
+        ]
+      }
+    },
+    {
+      "name": "Replace playlist and make public",
+      "method": "PUT",
+      "url": "{{baseUrl}}/api/v1/playlists/{{playlistId}}",
+      "body": {
+        "mode": "formdata",
+        "formdata": [
+          {
+            "key": "data",
+            "type": "text",
+            "value": "{\n  \"title\": \"Playlist Demo Public\",\n  \"isPrivate\": false\n}",
+            "contentType": "application/json"
+          },
+          {
+            "key": "file",
+            "type": "file",
+            "src": "docs/postman/fixtures/demo-avatar.png",
+            "disabled": true,
+            "description": "Optional JPEG/PNG image."
+          }
+        ]
+      }
+    },
+    {
+      "name": "Add song",
+      "method": "PUT",
+      "url": "{{baseUrl}}/api/v1/playlists/{{playlistId}}/songs/{{songId}}"
+    },
+    {
+      "name": "Add same song again (idempotent)",
+      "method": "PUT",
+      "url": "{{baseUrl}}/api/v1/playlists/{{playlistId}}/songs/{{songId}}"
+    },
+    {
+      "name": "Get playlist with songs",
+      "method": "GET",
+      "url": "{{baseUrl}}/api/v1/playlists/{{playlistId}}?page={{page}}&size={{size}}"
+    },
+    {
+      "name": "Reorder complete song list",
+      "method": "PUT",
+      "url": "{{baseUrl}}/api/v1/playlists/{{playlistId}}/songs",
+      "body": {
+        "mode": "raw",
+        "raw": "[\n  \"{{songId}}\"\n]",
+        "options": {
+          "raw": {
+            "language": "json"
+          }
+        }
+      }
+    },
+    {
+      "name": "Save release",
+      "method": "PUT",
+      "url": "{{baseUrl}}/api/v1/library/releases/{{releaseId}}"
+    },
+    {
+      "name": "Save playlist",
+      "method": "PUT",
+      "url": "{{baseUrl}}/api/v1/library/playlists/{{playlistId}}"
+    },
+    {
+      "name": "Follow artist",
+      "method": "PUT",
+      "url": "{{baseUrl}}/api/v1/library/artists/{{artistId}}"
+    },
+    {
+      "name": "Favorite song",
+      "method": "PUT",
+      "url": "{{baseUrl}}/api/v1/library/songs/{{songId}}"
+    },
+    {
+      "name": "List mixed library",
+      "method": "GET",
+      "url": "{{baseUrl}}/api/v1/library?sort=RECENT&page={{page}}&size={{size}}"
+    },
+    {
+      "name": "List saved releases",
+      "method": "GET",
+      "url": "{{baseUrl}}/api/v1/library/releases?sort=RECENT&page={{page}}&size={{size}}"
+    },
+    {
+      "name": "List saved playlists",
+      "method": "GET",
+      "url": "{{baseUrl}}/api/v1/library/playlists?sort=RECENT&page={{page}}&size={{size}}"
+    },
+    {
+      "name": "List followed artists",
+      "method": "GET",
+      "url": "{{baseUrl}}/api/v1/library/artists?sort=RECENT&page={{page}}&size={{size}}"
+    },
+    {
+      "name": "List favorite songs",
+      "method": "GET",
+      "url": "{{baseUrl}}/api/v1/library/songs?sort=RECENT&page={{page}}&size={{size}}"
+    },
+    {
+      "name": "List owned playlists",
+      "method": "GET",
+      "url": "{{baseUrl}}/api/v1/library/playlists?owned=true&sort=NAME&page={{page}}&size={{size}}"
+    },
+    {
+      "name": "Filter library by name",
+      "method": "GET",
+      "url": "{{baseUrl}}/api/v1/library?q={{q}}&sort=NAME&page={{page}}&size={{size}}"
+    },
+    {
+      "name": "Sort library by artist or owner",
+      "method": "GET",
+      "url": "{{baseUrl}}/api/v1/library?sort=ARTIST&page={{page}}&size={{size}}"
+    },
+    {
+      "name": "Unsave release",
+      "method": "DELETE",
+      "url": "{{baseUrl}}/api/v1/library/releases/{{releaseId}}"
+    },
+    {
+      "name": "Unfollow artist",
+      "method": "DELETE",
+      "url": "{{baseUrl}}/api/v1/library/artists/{{artistId}}"
+    },
+    {
+      "name": "Unfavorite song",
+      "method": "DELETE",
+      "url": "{{baseUrl}}/api/v1/library/songs/{{songId}}"
+    },
+    {
+      "name": "Unsave own playlist - 400",
+      "method": "DELETE",
+      "url": "{{baseUrl}}/api/v1/library/playlists/{{playlistId}}"
+    },
+    {
+      "name": "Create comment",
+      "method": "POST",
+      "url": "{{baseUrl}}/api/v1/songs/{{songId}}/comments",
+      "body": {
+        "mode": "raw",
+        "raw": "{\n  \"content\": \"This song sounds great.\"\n}",
+        "options": {
+          "raw": {
+            "language": "json"
+          }
+        }
+      }
+    },
+    {
+      "name": "Reply to comment",
+      "method": "POST",
+      "url": "{{baseUrl}}/api/v1/comments/{{commentId}}/replies",
+      "body": {
+        "mode": "raw",
+        "raw": "{\n  \"content\": \"I like this song too.\"\n}",
+        "options": {
+          "raw": {
+            "language": "json"
+          }
+        }
+      }
+    },
+    {
+      "name": "List comments",
+      "method": "GET",
+      "url": "{{baseUrl}}/api/v1/songs/{{songId}}/comments?page={{page}}&size={{size}}"
+    },
+    {
+      "name": "List replies",
+      "method": "GET",
+      "url": "{{baseUrl}}/api/v1/comments/{{commentId}}/replies?page={{page}}&size={{size}}"
+    },
+    {
+      "name": "Reply to reply - 400",
+      "method": "POST",
+      "url": "{{baseUrl}}/api/v1/comments/{{replyId}}/replies",
+      "body": {
+        "mode": "raw",
+        "raw": "{\n  \"content\": \"Nested replies are not allowed.\"\n}",
+        "options": {
+          "raw": {
+            "language": "json"
+          }
+        }
+      }
+    },
+    {
+      "name": "Delete comment and replies",
+      "method": "DELETE",
+      "url": "{{baseUrl}}/api/v1/comments/{{commentId}}"
+    },
+    {
+      "name": "Remove song from playlist",
+      "method": "DELETE",
+      "url": "{{baseUrl}}/api/v1/playlists/{{playlistId}}/songs/{{songId}}"
+    },
+    {
+      "name": "Delete test playlist",
+      "method": "DELETE",
+      "url": "{{baseUrl}}/api/v1/playlists/{{playlistId}}"
+    },
+    {
+      "name": "Deleted playlist - 404",
+      "method": "GET",
+      "url": "{{baseUrl}}/api/v1/playlists/{{playlistId}}"
+    },
+    {
+      "name": "Logout",
+      "method": "POST",
+      "url": "{{baseUrl}}/api/v1/auth/logout",
+      "body": {
+        "mode": "raw",
+        "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}",
+        "options": {
+          "raw": {
+            "language": "json"
+          }
+        }
+      }
+    },
+    {
+      "name": "Refresh after logout - 401",
+      "method": "POST",
+      "url": "{{baseUrl}}/api/v1/auth/refresh",
+      "body": {
+        "mode": "raw",
+        "raw": "{\n  \"refreshToken\": \"{{loggedOutRefreshToken}}\"\n}",
+        "options": {
+          "raw": {
+            "language": "json"
+          }
+        }
+      }
+    }
+  ]
+}

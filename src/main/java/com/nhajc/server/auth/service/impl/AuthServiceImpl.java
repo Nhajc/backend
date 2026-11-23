@@ -11,6 +11,7 @@ import com.nhajc.server.auth.service.JwtService;
 import com.nhajc.server.user.entity.User;
 import com.nhajc.server.user.mapper.UserResponseMapper;
 import com.nhajc.server.user.repository.UserRepository;
+import com.nhajc.server.common.exception.DatabaseConflicts;
 
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
@@ -23,7 +24,6 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
-import java.sql.SQLException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
@@ -32,11 +32,15 @@ import java.util.UUID;
 
 @Service
 public class AuthServiceImpl implements AuthService {
+    private static final String INVALID_CREDENTIALS = "Invalid username, email or password.";
+    private static final String DUMMY_PASSWORD = "unused-login-password";
+
     private final UserRepository users;
     private final RefreshTokenRepository refreshTokens;
     private final PasswordEncoder passwords;
     private final JwtService jwtService;
     private final UserResponseMapper responses;
+    private final String dummyPasswordHash;
     private final SecureRandom random = new SecureRandom();
 
     public AuthServiceImpl(UserRepository users, RefreshTokenRepository refreshTokens,
@@ -46,6 +50,7 @@ public class AuthServiceImpl implements AuthService {
         this.passwords = passwords;
         this.jwtService = jwtService;
         this.responses = responses;
+        this.dummyPasswordHash = passwords.encode(DUMMY_PASSWORD);
     }
 
     @Override
@@ -59,16 +64,16 @@ public class AuthServiceImpl implements AuthService {
                     "Password must be at most 72 UTF-8 bytes.");
         }
 
+        if (users.existsByUsernameIgnoreCase(username) || users.existsByEmailIgnoreCase(email)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Username or email already exists.");
+        }
+
         User user = new User(username, email, passwords.encode(request.password()));
         try {
             users.saveAndFlush(user);
         } catch (DataIntegrityViolationException exception) {
-            if (exception.getMostSpecificCause() instanceof SQLException sql
-                    && "23505".equals(sql.getSQLState())) {
-                throw new ResponseStatusException(HttpStatus.CONFLICT,
-                        "Username or email already exists.");
-            }
-            throw exception;
+            throw DatabaseConflicts.translate(exception, "Username or email already exists.");
         }
 
         return issueTokens(user, UUID.randomUUID());
@@ -78,13 +83,16 @@ public class AuthServiceImpl implements AuthService {
     @Transactional
     public AuthResponse login(LoginRequest request) {
         String identifier = request.usernameOrEmail().strip();
-        User user = users.findByUsernameIgnoreCase(identifier)
-                .or(() -> users.findByEmailIgnoreCase(identifier))
-                .orElseThrow(() -> unauthorized("Invalid username, email or password."));
+        User user = (identifier.contains("@")
+                ? users.findByEmailIgnoreCase(identifier)
+                : users.findByUsernameIgnoreCase(identifier)).orElse(null);
 
-        if (request.password().getBytes(StandardCharsets.UTF_8).length > 72
-                || !passwords.matches(request.password(), user.getPassword())) {
-            throw unauthorized("Invalid username, email or password.");
+        boolean tooLong = request.password().getBytes(StandardCharsets.UTF_8).length > 72;
+        String hash = user == null || tooLong ? dummyPasswordHash : user.getPassword();
+        // BCrypt rejects inputs over 72 bytes. Still perform one safe comparison.
+        boolean matches = passwords.matches(tooLong ? DUMMY_PASSWORD : request.password(), hash);
+        if (user == null || tooLong || !matches) {
+            throw unauthorized(INVALID_CREDENTIALS);
         }
         return issueTokens(user, UUID.randomUUID());
     }
