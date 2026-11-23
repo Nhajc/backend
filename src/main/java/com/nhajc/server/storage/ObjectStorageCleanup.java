@@ -41,8 +41,9 @@ public class ObjectStorageCleanup {
     }
 
     public void completeUpload(String key) {
-        // Joins the user update transaction, so a rollback restores the cleanup reservation.
-        jobs.deleteByObjectKey(key);
+        if (key != null && jobs.completeUpload(key) != 1) {
+            throw new ObjectStorageException("Upload reservation expired. Please retry.");
+        }
     }
 
     public void enqueue(String key) {
@@ -54,16 +55,20 @@ public class ObjectStorageCleanup {
 
     @Scheduled(fixedDelayString = "${storage.cleanup-delay-ms:30000}")
     public void deleteUnusedObjects() {
-        independentTransaction.executeWithoutResult(status -> {
+        var keys = independentTransaction.execute(status -> {
             var batch = jobs.findDeletable(Instant.now(), PageRequest.of(0, 20));
-            for (StorageCleanupJob job : batch) {
-                try {
-                    storage.delete(job.getObjectKey());
-                    jobs.delete(job);
-                } catch (ObjectStorageException exception) {
-                    log.warn("Object cleanup will retry for {}", job.getObjectKey());
-                }
-            }
+            Instant retryAfter = Instant.now().plusSeconds(60);
+            batch.forEach(job -> job.claimUntil(retryAfter));
+            return batch.stream().map(StorageCleanupJob::getObjectKey).toList();
         });
+        if (keys == null) return;
+        for (String key : keys) {
+            try {
+                storage.delete(key);
+                independentTransaction.executeWithoutResult(status -> jobs.deleteClaimed(key));
+            } catch (ObjectStorageException exception) {
+                log.warn("Object cleanup will retry for {}", key);
+            }
+        }
     }
 }

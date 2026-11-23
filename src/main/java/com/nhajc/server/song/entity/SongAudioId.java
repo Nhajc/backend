@@ -9,7 +9,7 @@ import java.util.UUID;
 public class SongAudioId implements Serializable {
     @Column(name = "song_id")
     private UUID songId;
-    @Column(length = 10)
+    @Column(length = 20)
     private String quality;
 
     protected SongAudioId() {}

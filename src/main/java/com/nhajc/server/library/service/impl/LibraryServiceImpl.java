@@ -45,43 +45,41 @@ public class LibraryServiceImpl implements LibraryService {
     }
     @Override @Transactional
     public void save(UUID actor, ItemType type, UUID id) {
-        users.lock(actor);
+        users.require(actor);
         boolean exists=switch(type) {
             case RELEASE -> releases.existsById(id);
             case SONG -> songs.existsById(id);
             case ARTIST -> artists.existsById(id);
             case PLAYLIST -> {
-                var p=playlists.findLockedById(id).orElseThrow(LibraryServiceImpl::missing);
+                var p=playlists.findById(id).orElseThrow(LibraryServiceImpl::missing);
                 if(p.isPrivate()&&!p.getOwner().getId().equals(actor))throw missing();
                 yield true;
             }
         };
         if(!exists)throw missing();
-        LibraryId key=new LibraryId(actor,id);
         switch(type) {
-            case RELEASE -> { if(!savedReleases.existsById(key))savedReleases.save(new SavedRelease(key)); }
-            case PLAYLIST -> { if(!savedPlaylists.existsById(key))savedPlaylists.save(new SavedPlaylist(key)); }
-            case ARTIST -> { if(!follows.existsById(key))follows.save(new FollowedArtist(key)); }
-            case SONG -> { if(!favorites.existsById(key))favorites.save(new FavoriteSong(key)); }
+            case RELEASE -> { savedReleases.insertIfAbsent(actor,id); }
+            case PLAYLIST -> { savedPlaylists.insertIfAbsent(actor,id); }
+            case ARTIST -> { follows.insertIfAbsent(actor,id); }
+            case SONG -> { favorites.insertIfAbsent(actor,id); }
         }
     }
     @Override @Transactional
     public void remove(UUID actor, ItemType type, UUID id) {
-        users.lock(actor);
+        users.require(actor);
         if(type==ItemType.PLAYLIST) {
-            var p=playlists.findLockedById(id);
+            var p=playlists.findById(id);
             if(p.isPresent()) {
                 if(p.get().getOwner().getId().equals(actor))
                     throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Delete your own playlist using DELETE /playlists/{id}.");
                 if(p.get().isPrivate())throw missing();
             }
         }
-        LibraryId key=new LibraryId(actor,id);
         switch(type) {
-            case RELEASE -> savedReleases.deleteById(key);
-            case PLAYLIST -> savedPlaylists.deleteById(key);
-            case ARTIST -> follows.deleteById(key);
-            case SONG -> favorites.deleteById(key);
+            case RELEASE -> savedReleases.deleteEntry(actor,id);
+            case PLAYLIST -> savedPlaylists.deleteEntry(actor,id);
+            case ARTIST -> follows.deleteEntry(actor,id);
+            case SONG -> favorites.deleteEntry(actor,id);
         }
     }
     private static ResponseStatusException missing() { return new ResponseStatusException(HttpStatus.NOT_FOUND,"Resource not found."); }

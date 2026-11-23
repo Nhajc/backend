@@ -2,7 +2,10 @@ package com.nhajc.server.playlist.controller;
 import com.nhajc.server.playlist.service.PlaylistService;
 import com.nhajc.server.playlist.dto.*;
 import com.nhajc.server.common.security.Actors;
-import com.nhajc.server.common.pagination.PageRequests;
+import com.nhajc.server.common.validation.MultipartRequests;
+import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.http.MediaType;
+import org.springframework.web.multipart.MultipartFile;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -14,19 +17,28 @@ import java.util.*;
 @RestController @RequestMapping("/api/v1/playlists")
 public class PlaylistController {
     private final PlaylistService playlists;
-    public PlaylistController(PlaylistService playlists) { this.playlists=playlists; }
+    private final MultipartRequests multipart;
+    public PlaylistController(PlaylistService playlists, MultipartRequests multipart) {
+        this.playlists=playlists;
+        this.multipart=multipart;
+    }
     @GetMapping("/{id}")
-    public PlaylistResponse get(@PathVariable UUID id,@RequestParam(defaultValue="0") int page,
-            @RequestParam(defaultValue="20") int size,@AuthenticationPrincipal Jwt jwt) {
-        return playlists.get(Actors.id(jwt),id,PageRequests.of(page,size));
+    public PlaylistResponse get(@PathVariable UUID id,@AuthenticationPrincipal Jwt jwt) {
+        return playlists.get(Actors.id(jwt),id);
     }
-    @PostMapping @ResponseStatus(HttpStatus.CREATED)
-    public PlaylistResponse create(@Valid @RequestBody PlaylistRequest request,@AuthenticationPrincipal Jwt jwt) {
-        return playlists.create(Actors.id(jwt),request);
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE) @ResponseStatus(HttpStatus.CREATED)
+    public PlaylistResponse create(@RequestPart("data") @Valid @NotNull PlaylistRequest data,
+            @RequestPart(value="file",required=false) MultipartFile file,
+            @AuthenticationPrincipal Jwt jwt,HttpServletRequest request) {
+        multipart.validateParts(request);
+        return playlists.create(Actors.id(jwt),data,file);
     }
-    @PutMapping("/{id}") @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void update(@PathVariable UUID id,@Valid @RequestBody PlaylistRequest request,@AuthenticationPrincipal Jwt jwt) {
-        playlists.update(Actors.id(jwt),id,request);
+    @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE) @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void update(@PathVariable UUID id,@RequestPart("data") @Valid @NotNull PlaylistRequest data,
+            @RequestPart(value="file",required=false) MultipartFile file,
+            @AuthenticationPrincipal Jwt jwt,HttpServletRequest request) {
+        multipart.validateParts(request);
+        playlists.update(Actors.id(jwt),id,data,file);
     }
     @DeleteMapping("/{id}") @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable UUID id,@AuthenticationPrincipal Jwt jwt) { playlists.delete(Actors.id(jwt),id); }

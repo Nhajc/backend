@@ -8,6 +8,7 @@ import org.springframework.web.server.ResponseStatusException;
 public final class PageRequests {
     public static final String DEFAULT_PAGE = "0";
     public static final String DEFAULT_SIZE = "20";
+    public static final String DEFAULT_COMMENT_SIZE = "10";
     public static final int MAX_SIZE = 100;
 
     private PageRequests() {}

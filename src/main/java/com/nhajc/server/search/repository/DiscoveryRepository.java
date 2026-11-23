@@ -2,7 +2,6 @@ package com.nhajc.server.search.repository;
 
 import com.nhajc.server.library.entity.*;
 import com.nhajc.server.common.dto.PageResponse;
-import com.nhajc.server.common.pagination.PageRequests;
 import jakarta.persistence.EntityManager;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
@@ -22,7 +21,7 @@ public class DiscoveryRepository {
 
     public PageResponse<Hit> find(UUID actor, ItemType type, String input, boolean library,
                                   boolean owned, LibrarySort sort, Pageable pageable) {
-        var page=PageRequests.of(pageable.getPageNumber(),pageable.getPageSize());
+        var page=pageable;
         String q=input==null ? null : input.strip().toLowerCase(Locale.ROOT);
         if((!library&&q==null) || q!=null&&(q.isEmpty()||q.length()>100))
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"q must contain 1–100 characters.");

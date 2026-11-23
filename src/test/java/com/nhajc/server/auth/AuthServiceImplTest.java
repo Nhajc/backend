@@ -70,7 +70,7 @@ class AuthServiceImplTest {
     }
 
     @Test
-    void emailOwnerTakesPriorityOverLegacyUsername() {
+    void identifierContainingAtUsesEmailOnly() {
         User owner = user("owner");
         when(users.findByEmailIgnoreCase("shared@example.com")).thenReturn(Optional.of(owner));
         when(passwords.matches("secret", "real-hash")).thenReturn(true);
@@ -87,7 +87,7 @@ class AuthServiceImplTest {
     }
 
     @Test
-    void wrongEmailPasswordDoesNotTryLegacyUsername() {
+    void wrongEmailPasswordDoesNotTryUsername() {
         when(users.findByEmailIgnoreCase("shared@example.com")).thenReturn(Optional.of(user("owner")));
         assertInvalidLogin("shared@example.com", "wrong");
         verify(users, never()).findByUsernameIgnoreCase(anyString());
@@ -95,15 +95,10 @@ class AuthServiceImplTest {
     }
 
     @Test
-    void supportsUnambiguousLegacyUsernameContainingAt() {
-        User legacy = user("legacy@example.com");
-        when(users.findByUsernameIgnoreCase("legacy@example.com")).thenReturn(Optional.of(legacy));
-        when(passwords.matches("old", "real-hash")).thenReturn(true);
-
-        auth.login(new LoginRequest("legacy@example.com", "old"));
-
-        verify(users).findByEmailIgnoreCase("legacy@example.com");
-        verify(jwt).createAccessToken(legacy);
+    void missingEmailDoesNotFallbackToUsername() {
+        assertInvalidLogin("missing@example.com", "wrong");
+        verify(users).findByEmailIgnoreCase("missing@example.com");
+        verify(users, never()).findByUsernameIgnoreCase(anyString());
     }
 
     @Test
@@ -113,9 +108,9 @@ class AuthServiceImplTest {
     }
 
     @Test
-    void registrationRejectsExistingIdentifiersIncludingLegacyCollisions() {
-        when(users.existsByLoginIdentifiers("newuser", "legacy@example.com")).thenReturn(true);
-        assertThatThrownBy(() -> auth.register(new RegisterRequest("newuser", "legacy@example.com", "x".repeat(12))))
+    void registrationRejectsExistingEmail() {
+        when(users.existsByEmailIgnoreCase("existing@example.com")).thenReturn(true);
+        assertThatThrownBy(() -> auth.register(new RegisterRequest("newuser", "existing@example.com", "x".repeat(12))))
                 .isInstanceOfSatisfying(ResponseStatusException.class,
                         exception -> assertThat(exception.getStatusCode().value()).isEqualTo(409));
         verify(users, never()).saveAndFlush(any());

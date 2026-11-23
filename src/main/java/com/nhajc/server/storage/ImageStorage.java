@@ -69,13 +69,11 @@ public class ImageStorage {
         } catch (IOException | IllegalArgumentException exception) { throw invalid(); }
     }
 
-    // Called inside the transaction which writes the corresponding database pointer.
     public String upload(String prefix, Image image) {
         if (image == null) return null;
-        String key = prefix + "/" + UUID.randomUUID() + (image.contentType().equals("image/png") ? ".png" : ".jpg");
+        String key = prefix + "." + UUID.randomUUID() + (image.contentType().equals("image/png") ? ".png" : ".jpg");
         cleanup.reserveUpload(key);
         storage.upload(key, image.bytes(), image.contentType());
-        cleanup.completeUpload(key);
         return key;
     }
 

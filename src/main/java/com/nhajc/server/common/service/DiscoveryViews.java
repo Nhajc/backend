@@ -16,7 +16,7 @@ public class DiscoveryViews {
         values.put(ItemType.SONG,views.songs(ids.get(ItemType.SONG),actor));
         values.put(ItemType.RELEASE,views.releases(ids.get(ItemType.RELEASE),actor));
         values.put(ItemType.PLAYLIST,views.playlists(ids.get(ItemType.PLAYLIST),actor));
-        values.put(ItemType.ARTIST,views.artists(ids.get(ItemType.ARTIST)));
+        values.put(ItemType.ARTIST,views.artists(ids.get(ItemType.ARTIST),actor));
         var result=new ArrayList<Object>();
         for(var hit:page.content()) {
             Object item=values.get(hit.type()).get(hit.id());

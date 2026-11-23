@@ -158,45 +158,45 @@ class AuthHttpTest {
     @Test
     void avatarFileIsPassedToProfileService() throws Exception {
         UUID userId = UUID.randomUUID();
-        var file = new MockMultipartFile("avatar", "avatar.png", "image/png", new byte[]{1, 2, 3});
-        when(users.updateProfile(any(), any())).thenReturn(profile(userId));
+        var file = new MockMultipartFile("file", "avatar.png", "image/png", new byte[]{1, 2, 3});
+        when(users.updateProfile(any(), any(), any())).thenReturn(profile(userId));
         mvc.perform(multipart(HttpMethod.PUT, "/api/v1/users/me").file(file)
-                        .param("_charset_", "UTF-8").header("Authorization", "Bearer " + accessToken(userId)))
+                        .file(new MockMultipartFile("data","","application/json","{}".getBytes())).header("Authorization", "Bearer " + accessToken(userId)))
                 .andExpect(status().isOk());
-        verify(users).updateProfile(userId.toString(), new UpdateProfileRequest(file));
+        verify(users).updateProfile(userId.toString(), new UpdateProfileRequest(), file);
     }
 
     @Test
-    void avatarFileTakesPrecedenceOverTextParameter() throws Exception {
+    void duplicateFileAndTextPartAreRejected() throws Exception {
         UUID userId = UUID.randomUUID();
-        var file = new MockMultipartFile("avatar", "avatar.png", "image/png", new byte[]{1, 2, 3});
-        when(users.updateProfile(any(), any())).thenReturn(profile(userId));
+        var file = new MockMultipartFile("file", "avatar.png", "image/png", new byte[]{1, 2, 3});
+        when(users.updateProfile(any(), any(), any())).thenReturn(profile(userId));
         mvc.perform(multipart(HttpMethod.PUT, "/api/v1/users/me").file(file)
-                        .param("_charset_", "UTF-8").param("avatar", "avatar.png")
+                        .file(new MockMultipartFile("data","","application/json","{}".getBytes())).param("file", "avatar.png")
                         .header("Authorization", "Bearer " + accessToken(userId)))
-                .andExpect(status().isOk());
-        verify(users).updateProfile(userId.toString(), new UpdateProfileRequest(file));
+                .andExpect(status().isBadRequest());
+        verifyNoInteractions(users);
     }
 
     @Test
     void avatarSentAsTextReturnsActionable400BeforeCallingService() throws Exception {
         mvc.perform(multipart(HttpMethod.PUT, "/api/v1/users/me")
-                        .param("_charset_", "UTF-8").param("avatar", "C:/Pictures/avatar.png")
+                        .file(new MockMultipartFile("data","","application/json","{}".getBytes())).param("file", "C:/Pictures/avatar.png")
                         .header("Authorization", "Bearer " + accessToken(UUID.randomUUID())))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.detail").value(
-                        "Invalid avatar part. Send avatar as a File in multipart/form-data, not as text or a file path."));
+                        "file must be a File part in multipart/form-data, not text or a file path."));
         verifyNoInteractions(users);
     }
 
     @Test
     void multipartWithoutAvatarStillBindsNullForRemoval() throws Exception {
         UUID userId = UUID.randomUUID();
-        when(users.updateProfile(any(), any())).thenReturn(profile(userId));
+        when(users.updateProfile(any(), any(), any())).thenReturn(profile(userId));
         mvc.perform(multipart(HttpMethod.PUT, "/api/v1/users/me")
-                        .param("_charset_", "UTF-8").header("Authorization", "Bearer " + accessToken(userId)))
+                        .file(new MockMultipartFile("data","","application/json","{}".getBytes())).header("Authorization", "Bearer " + accessToken(userId)))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.avatarUrl").isEmpty());
-        verify(users).updateProfile(userId.toString(), new UpdateProfileRequest(null));
+        verify(users).updateProfile(userId.toString(), new UpdateProfileRequest(), null);
     }
 
     private String accessToken(UUID userId) {
@@ -214,7 +214,7 @@ class AuthHttpTest {
     @Configuration
     @EnableWebMvc
     @EnableWebSecurity
-    @Import({SecurityConfig.class, AuthController.class, UserController.class, ApiExceptionHandler.class, ErrorEndpoint.class})
+    @Import({SecurityConfig.class, AuthController.class, UserController.class, ApiExceptionHandler.class, com.nhajc.server.common.validation.MultipartRequests.class, ErrorEndpoint.class})
     static class TestConfig {
         @Bean AuthService authService() { return mock(AuthService.class); }
         @Bean UserService userService() { return mock(UserService.class); }

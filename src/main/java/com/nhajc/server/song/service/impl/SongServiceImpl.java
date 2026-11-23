@@ -1,4 +1,5 @@
 package com.nhajc.server.song.service.impl;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.nhajc.server.common.exception.DatabaseConflicts;
 import com.nhajc.server.release.repository.ReleaseRepository;
@@ -45,17 +46,17 @@ public class SongServiceImpl implements SongService {
     }
 
     @Override
-    public UUID upload(UUID releaseId, UploadSongRequest request) {
+    public UUID upload(UUID releaseId, UploadSongRequest request, MultipartFile file) {
         if (!slots.tryAcquire()) throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "At most two song uploads can be processed at once.");
         Path directory = null;
         try {
             if (!releases.existsById(releaseId)) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Release not found.");
             if (songs.existsByRelease_IdAndTrackNumber(releaseId, request.trackNumber())) throw duplicateTrack();
-            if (request.file().isEmpty()) throw FlacMetadata.invalid();
-            if (request.file().getSize() > MAX_BYTES) throw tooLarge();
+            if (file.isEmpty()) throw FlacMetadata.invalid();
+            if (file.getSize() > MAX_BYTES) throw tooLarge();
             directory = Files.createTempDirectory("nhajc-audio-");
             Path original = directory.resolve("original.flac");
-            try (var input = request.file().getInputStream(); var output = Files.newOutputStream(original)) {
+            try (var input = file.getInputStream(); var output = Files.newOutputStream(original)) {
                 byte[] buffer = new byte[65536];
                 long copied = 0; int read;
                 while ((read = input.read(buffer)) != -1) {
@@ -82,14 +83,13 @@ public class SongServiceImpl implements SongService {
                 storage.upload(key, entry.getValue(), quality.equals("lossless") ? "audio/flac" : "audio/mp4");
                 keys.put(quality, key);
             }
-            ImageStorage.Image embeddedCover = cover;
+            String coverKey = images.upload("covers/releases/" + releaseId + "/cover", cover);
             transaction.executeWithoutResult(status -> {
-                var release = releases.findLockedById(releaseId).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Release not found."));
+                var release = releases.getReferenceById(releaseId);
                 if (songs.existsByRelease_IdAndTrackNumber(releaseId, request.trackNumber())) throw duplicateTrack();
                 songs.saveAndFlush(new Song(songId, request.title(), metadata.durationSeconds(), request.trackNumber(), release, keys));
-                if (release.getCoverObjectKey() == null && embeddedCover != null) {
-                    release.setCoverObjectKey(images.upload("covers/releases/" + releaseId, embeddedCover));
-                    releases.saveAndFlush(release);
+                if (coverKey != null && releases.setCoverIfAbsent(releaseId, coverKey) == 1) {
+                    cleanup.completeUpload(coverKey);
                 }
                 keys.values().forEach(cleanup::completeUpload);
             });

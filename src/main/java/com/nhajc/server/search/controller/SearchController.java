@@ -14,7 +14,7 @@ public class SearchController {
     public SearchController(SearchService search) { this.search=search; }
     @GetMapping({"","/{type}"})
     public PageResponse<?> search(@PathVariable(required=false) String type, @RequestParam String q,
-            @RequestParam(defaultValue="0") int page, @RequestParam(defaultValue="20") int size,
+            @RequestParam(defaultValue = PageRequests.DEFAULT_PAGE) int page, @RequestParam(defaultValue = PageRequests.DEFAULT_SIZE) int size,
             @AuthenticationPrincipal Jwt jwt) {
         return search.search(Actors.id(jwt),type==null?null:ItemType.fromPath(type),q,PageRequests.of(page,size));
     }

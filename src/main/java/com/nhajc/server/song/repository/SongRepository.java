@@ -10,7 +10,7 @@ public interface SongRepository extends JpaRepository<Song, UUID> {
     @EntityGraph(attributePaths = {"artists", "release"})
     java.util.List<Song> findByIdIn(java.util.Collection<UUID> ids);
 
-    org.springframework.data.domain.Slice<Song> findByRelease_IdOrderByTrackNumberAscIdAsc(UUID id, org.springframework.data.domain.Pageable pageable);
+    java.util.List<Song> findByRelease_IdOrderByTrackNumberAscIdAsc(UUID id);
 
     @Query("select s.release.id, count(s) from Song s where s.release.id in :ids group by s.release.id")
     java.util.List<Object[]> counts(@Param("ids") java.util.Collection<UUID> ids);

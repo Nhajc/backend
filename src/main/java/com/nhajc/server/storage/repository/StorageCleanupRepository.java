@@ -11,8 +11,12 @@ import java.util.List;
 
 public interface StorageCleanupRepository extends JpaRepository<StorageCleanupJob, String> {
     @Modifying(flushAutomatically = true)
-    @Query("delete from StorageCleanupJob c where c.objectKey = :key")
-    void deleteByObjectKey(@Param("key") String key);
+    @Query("delete from StorageCleanupJob c where c.objectKey = :key and c.claimed = false")
+    int completeUpload(@Param("key") String key);
+
+    @Modifying
+    @Query("delete from StorageCleanupJob c where c.objectKey = :key and c.claimed = true")
+    void deleteClaimed(@Param("key") String key);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @QueryHints(@QueryHint(name = "jakarta.persistence.lock.timeout", value = "-2"))
@@ -21,6 +25,7 @@ public interface StorageCleanupRepository extends JpaRepository<StorageCleanupJo
               and not exists (select u.id from User u where u.avatarObjectKey = c.objectKey)
               and not exists (select a.id from Artist a where a.avatarObjectKey = c.objectKey)
               and not exists (select r.id from Release r where r.coverObjectKey = c.objectKey)
+              and not exists (select p.id from Playlist p where p.coverObjectKey = c.objectKey)
               and not exists (select a.id from SongAudio a where a.objectKey = c.objectKey)
             order by c.deleteAfter, c.objectKey
             """)

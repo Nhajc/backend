@@ -11,6 +11,6 @@ public class UserAccess {
     public UserAccess(UserRepository users) { this.users=users; }
     public User require(UUID actor) { return users.findById(actor).orElseThrow(UserAccess::missing); }
     public User lock(UUID actor) { return users.findLockedById(actor).orElseThrow(UserAccess::missing); }
-    private static ResponseStatusException missing() { return new ResponseStatusException(HttpStatus.UNAUTHORIZED,"User no longer exists."); }
+    public static ResponseStatusException missing() { return new ResponseStatusException(HttpStatus.UNAUTHORIZED,"User no longer exists."); }
 }
 

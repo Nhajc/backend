@@ -1,9 +1,8 @@
 {
   "info": {
-    "_postman_id": "088a72f0-f366-44bc-97a5-2a95fd229925",
-    "name": "Nhajc API - Auth & Users",
+    "name": "Nhajc API",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "description": "19 request cho 6 API đã có trong code. Import cùng Nhajc Local rồi chọn environment. Chạy theo thứ tự hoặc Run collection; mặc định Register tự tạo tài khoản thử mới. Token tự lưu và được dùng cho Users. Upload avatar bỏ qua nếu chưa chọn file. Chạy toàn bộ sẽ xóa avatar của tài khoản thử và logout phiên cuối. Để dùng tài khoản có sẵn: autoGenerateUser=false, điền username/email/password rồi bắt đầu từ Login. Các API Admin, đọc thể loại, phát audio và xóa comment nằm trong collection Nhajc-admin.postman_collection.json riêng. Xem README.md trong cùng thư mục."
+    "description": "Auth, profile, admin, catalog, playlists, library and comments. Use Nhajc Local. Run on a disposable database; the workflow creates resources and changes library state. See README.md."
   },
   "auth": {
     "type": "bearer",
@@ -15,38 +14,12 @@
       }
     ]
   },
-  "event": [
-    {
-      "listen": "prerequest",
-      "script": {
-        "type": "text/javascript",
-        "exec": [
-          "if (!pm.environment.get(\"baseUrl\")) throw new Error(\"Chọn environment Nhajc Local trước khi gửi request.\");"
-        ]
-      }
-    },
-    {
-      "listen": "test",
-      "script": {
-        "type": "text/javascript",
-        "exec": [
-          "if (pm.response.code >= 400) {",
-          "    pm.test(\"Lỗi trả ProblemDetail\", function () {",
-          "        const problem = pm.response.json();",
-          "        pm.expect(problem.status).to.eql(pm.response.code);",
-          "        pm.expect(problem.detail).to.be.a(\"string\").and.not.empty;",
-          "    });",
-          "}"
-        ]
-      }
-    }
-  ],
   "item": [
     {
-      "name": "01 - Auth",
+      "name": "Auth",
       "item": [
         {
-          "name": "01 - Register",
+          "name": "Register",
           "request": {
             "auth": {
               "type": "noauth"
@@ -68,7 +41,7 @@
               }
             },
             "url": "{{baseUrl}}/api/v1/auth/register",
-            "description": "Tạo tài khoản USER. autoGenerateUser=true sẽ tạo username/email/password mới và lưu vào environment mỗi lần gửi request này. Nếu muốn tự nhập thông tin, đặt autoGenerateUser=false. Username 3–50 ký tự, không @/khoảng trắng; email tối đa 254 ký tự; mật khẩu 12–72 ký tự và tối đa 72 byte UTF-8. Trả 201 và tự lưu token."
+            "description": "POST {{baseUrl}}/api/v1/auth/register. See ../api.md for the contract."
           },
           "event": [
             {
@@ -84,9 +57,9 @@
                   "    pm.environment.set(\"password\", \"Test!\" + pm.variables.replaceIn(\"{{$guid}}\"));",
                   "}",
                   "[\"username\", \"email\", \"password\"].forEach(function (key) {",
-                  "    if (!pm.environment.get(key)) throw new Error(\"Điền \" + key + \" trong Nhajc Local hoặc đặt autoGenerateUser=true.\");",
+                  "    if (!pm.environment.get(key)) throw new Error(\"Set required environment variable: \" + key + \" in the selected environment.\");",
                   "});",
-                  "// Serialize sau khi thay biến để mật khẩu chứa dấu nháy vẫn tạo JSON hợp lệ.",
+                  "// Resolve variables before serializing request data.",
                   "const payload = JSON.parse(pm.request.body.raw);",
                   "Object.keys(payload).forEach(function (key) {",
                   "    if (typeof payload[key] === \"string\") payload[key] = pm.variables.replaceIn(payload[key]);",
@@ -103,14 +76,14 @@
                   "pm.test(\"HTTP 201\", function () { pm.response.to.have.status(201); });",
                   "if (pm.response.code === 201) {",
                   "    const body = pm.response.json();",
-                  "    pm.test(\"Có access token và refresh token\", function () {",
+                  "    pm.test(\"Response follows the API contract\", function () {",
                   "        pm.expect(body).to.have.all.keys(\"accessToken\", \"refreshToken\", \"user\");",
                   "        pm.expect(body.accessToken).to.be.a(\"string\").and.not.empty;",
                   "        pm.expect(body.accessToken.split(\".\")).to.have.lengthOf(3);",
                   "        pm.expect(body.refreshToken).to.match(/^[A-Za-z0-9_-]{43}$/);",
                   "    });",
                   "    const user = body.user;",
-                  "pm.test(\"UserResponse đúng hợp đồng\", function () {",
+                  "pm.test(\"Response follows the API contract\", function () {",
                   "    pm.expect(user).to.have.all.keys(\"id\", \"username\", \"email\", \"createdAt\", \"role\", \"avatarUrl\");",
                   "    pm.expect(user.id).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);",
                   "    pm.expect(user.username).to.be.a(\"string\").and.not.empty;",
@@ -118,7 +91,7 @@
                   "    pm.expect([\"USER\", \"ADMIN\"]).to.include(user.role);",
                   "    pm.expect(Number.isNaN(Date.parse(user.createdAt))).to.eql(false);",
                   "});",
-                  "pm.test(\"Avatar là URL hoặc null\", function () {",
+                  "pm.test(\"Response follows the API contract\", function () {",
                   "    pm.expect(user.avatarUrl === null || (typeof user.avatarUrl === \"string\" && /^https?:\\/\\//.test(user.avatarUrl))).to.eql(true);",
                   "});",
                   "pm.environment.set(\"userId\", user.id);",
@@ -132,7 +105,7 @@
           ]
         },
         {
-          "name": "02 - Login bằng username",
+          "name": "Login with username",
           "request": {
             "auth": {
               "type": "noauth"
@@ -154,7 +127,7 @@
               }
             },
             "url": "{{baseUrl}}/api/v1/auth/login",
-            "description": "Đăng nhập tài khoản trong environment. Dùng được với tài khoản đã có, kể cả mật khẩu cũ ngắn hơn 12 ký tự. Tự thay accessToken/refreshToken."
+            "description": "POST {{baseUrl}}/api/v1/auth/login. See ../api.md for the contract."
           },
           "event": [
             {
@@ -162,7 +135,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "// Serialize sau khi thay biến để mật khẩu chứa dấu nháy vẫn tạo JSON hợp lệ.",
+                  "// Resolve variables before serializing request data.",
                   "const payload = JSON.parse(pm.request.body.raw);",
                   "Object.keys(payload).forEach(function (key) {",
                   "    if (typeof payload[key] === \"string\") payload[key] = pm.variables.replaceIn(payload[key]);",
@@ -179,14 +152,14 @@
                   "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
                   "if (pm.response.code === 200) {",
                   "    const body = pm.response.json();",
-                  "    pm.test(\"Có access token và refresh token\", function () {",
+                  "    pm.test(\"Response follows the API contract\", function () {",
                   "        pm.expect(body).to.have.all.keys(\"accessToken\", \"refreshToken\", \"user\");",
                   "        pm.expect(body.accessToken).to.be.a(\"string\").and.not.empty;",
                   "        pm.expect(body.accessToken.split(\".\")).to.have.lengthOf(3);",
                   "        pm.expect(body.refreshToken).to.match(/^[A-Za-z0-9_-]{43}$/);",
                   "    });",
                   "    const user = body.user;",
-                  "pm.test(\"UserResponse đúng hợp đồng\", function () {",
+                  "pm.test(\"Response follows the API contract\", function () {",
                   "    pm.expect(user).to.have.all.keys(\"id\", \"username\", \"email\", \"createdAt\", \"role\", \"avatarUrl\");",
                   "    pm.expect(user.id).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);",
                   "    pm.expect(user.username).to.be.a(\"string\").and.not.empty;",
@@ -194,7 +167,7 @@
                   "    pm.expect([\"USER\", \"ADMIN\"]).to.include(user.role);",
                   "    pm.expect(Number.isNaN(Date.parse(user.createdAt))).to.eql(false);",
                   "});",
-                  "pm.test(\"Avatar là URL hoặc null\", function () {",
+                  "pm.test(\"Response follows the API contract\", function () {",
                   "    pm.expect(user.avatarUrl === null || (typeof user.avatarUrl === \"string\" && /^https?:\\/\\//.test(user.avatarUrl))).to.eql(true);",
                   "});",
                   "pm.environment.set(\"userId\", user.id);",
@@ -208,7 +181,7 @@
           ]
         },
         {
-          "name": "03 - Login bằng email",
+          "name": "Login with email",
           "request": {
             "auth": {
               "type": "noauth"
@@ -230,7 +203,7 @@
               }
             },
             "url": "{{baseUrl}}/api/v1/auth/login",
-            "description": "Đăng nhập bằng email, tự lưu bộ token mới. Username/email không phân biệt hoa thường."
+            "description": "POST {{baseUrl}}/api/v1/auth/login. See ../api.md for the contract."
           },
           "event": [
             {
@@ -238,7 +211,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "// Serialize sau khi thay biến để mật khẩu chứa dấu nháy vẫn tạo JSON hợp lệ.",
+                  "// Resolve variables before serializing request data.",
                   "const payload = JSON.parse(pm.request.body.raw);",
                   "Object.keys(payload).forEach(function (key) {",
                   "    if (typeof payload[key] === \"string\") payload[key] = pm.variables.replaceIn(payload[key]);",
@@ -255,14 +228,14 @@
                   "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
                   "if (pm.response.code === 200) {",
                   "    const body = pm.response.json();",
-                  "    pm.test(\"Có access token và refresh token\", function () {",
+                  "    pm.test(\"Response follows the API contract\", function () {",
                   "        pm.expect(body).to.have.all.keys(\"accessToken\", \"refreshToken\", \"user\");",
                   "        pm.expect(body.accessToken).to.be.a(\"string\").and.not.empty;",
                   "        pm.expect(body.accessToken.split(\".\")).to.have.lengthOf(3);",
                   "        pm.expect(body.refreshToken).to.match(/^[A-Za-z0-9_-]{43}$/);",
                   "    });",
                   "    const user = body.user;",
-                  "pm.test(\"UserResponse đúng hợp đồng\", function () {",
+                  "pm.test(\"Response follows the API contract\", function () {",
                   "    pm.expect(user).to.have.all.keys(\"id\", \"username\", \"email\", \"createdAt\", \"role\", \"avatarUrl\");",
                   "    pm.expect(user.id).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);",
                   "    pm.expect(user.username).to.be.a(\"string\").and.not.empty;",
@@ -270,7 +243,7 @@
                   "    pm.expect([\"USER\", \"ADMIN\"]).to.include(user.role);",
                   "    pm.expect(Number.isNaN(Date.parse(user.createdAt))).to.eql(false);",
                   "});",
-                  "pm.test(\"Avatar là URL hoặc null\", function () {",
+                  "pm.test(\"Response follows the API contract\", function () {",
                   "    pm.expect(user.avatarUrl === null || (typeof user.avatarUrl === \"string\" && /^https?:\\/\\//.test(user.avatarUrl))).to.eql(true);",
                   "});",
                   "pm.environment.set(\"userId\", user.id);",
@@ -284,7 +257,7 @@
           ]
         },
         {
-          "name": "04 - Refresh tokens",
+          "name": "Refresh tokens",
           "request": {
             "auth": {
               "type": "noauth"
@@ -306,7 +279,7 @@
               }
             },
             "url": "{{baseUrl}}/api/v1/auth/refresh",
-            "description": "Gửi refresh token hiện tại, tự thay cả hai token. Token cũ chỉ được dùng một lần. Nếu thất bại 401, đăng nhập lại."
+            "description": "POST {{baseUrl}}/api/v1/auth/refresh. See ../api.md for the contract."
           },
           "event": [
             {
@@ -314,7 +287,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "// Serialize sau khi thay biến để mật khẩu chứa dấu nháy vẫn tạo JSON hợp lệ.",
+                  "// Resolve variables before serializing request data.",
                   "const payload = JSON.parse(pm.request.body.raw);",
                   "Object.keys(payload).forEach(function (key) {",
                   "    if (typeof payload[key] === \"string\") payload[key] = pm.variables.replaceIn(payload[key]);",
@@ -331,14 +304,14 @@
                   "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
                   "if (pm.response.code === 200) {",
                   "    const body = pm.response.json();",
-                  "    pm.test(\"Có access token và refresh token\", function () {",
+                  "    pm.test(\"Response follows the API contract\", function () {",
                   "        pm.expect(body).to.have.all.keys(\"accessToken\", \"refreshToken\", \"user\");",
                   "        pm.expect(body.accessToken).to.be.a(\"string\").and.not.empty;",
                   "        pm.expect(body.accessToken.split(\".\")).to.have.lengthOf(3);",
                   "        pm.expect(body.refreshToken).to.match(/^[A-Za-z0-9_-]{43}$/);",
                   "    });",
                   "    const user = body.user;",
-                  "pm.test(\"UserResponse đúng hợp đồng\", function () {",
+                  "pm.test(\"Response follows the API contract\", function () {",
                   "    pm.expect(user).to.have.all.keys(\"id\", \"username\", \"email\", \"createdAt\", \"role\", \"avatarUrl\");",
                   "    pm.expect(user.id).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);",
                   "    pm.expect(user.username).to.be.a(\"string\").and.not.empty;",
@@ -346,7 +319,7 @@
                   "    pm.expect([\"USER\", \"ADMIN\"]).to.include(user.role);",
                   "    pm.expect(Number.isNaN(Date.parse(user.createdAt))).to.eql(false);",
                   "});",
-                  "pm.test(\"Avatar là URL hoặc null\", function () {",
+                  "pm.test(\"Response follows the API contract\", function () {",
                   "    pm.expect(user.avatarUrl === null || (typeof user.avatarUrl === \"string\" && /^https?:\\/\\//.test(user.avatarUrl))).to.eql(true);",
                   "});",
                   "pm.environment.set(\"userId\", user.id);",
@@ -363,15 +336,15 @@
       ]
     },
     {
-      "name": "02 - Users",
+      "name": "User profile",
       "item": [
         {
-          "name": "05 - Get my profile",
+          "name": "Get my profile",
           "request": {
             "method": "GET",
             "header": [],
             "url": "{{baseUrl}}/api/v1/users/me",
-            "description": "Tự dùng Bearer {{accessToken}} kế thừa từ collection. Trả UserResponse và lưu avatarUrl vào environment."
+            "description": "GET {{baseUrl}}/api/v1/users/me. See ../api.md for the contract."
           },
           "event": [
             {
@@ -381,7 +354,7 @@
                 "exec": [
                   "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
                   "if (pm.response.code === 200) { const user = pm.response.json();",
-                  "pm.test(\"UserResponse đúng hợp đồng\", function () {",
+                  "pm.test(\"Response follows the API contract\", function () {",
                   "    pm.expect(user).to.have.all.keys(\"id\", \"username\", \"email\", \"createdAt\", \"role\", \"avatarUrl\");",
                   "    pm.expect(user.id).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);",
                   "    pm.expect(user.username).to.be.a(\"string\").and.not.empty;",
@@ -389,7 +362,7 @@
                   "    pm.expect([\"USER\", \"ADMIN\"]).to.include(user.role);",
                   "    pm.expect(Number.isNaN(Date.parse(user.createdAt))).to.eql(false);",
                   "});",
-                  "pm.test(\"Avatar là URL hoặc null\", function () {",
+                  "pm.test(\"Response follows the API contract\", function () {",
                   "    pm.expect(user.avatarUrl === null || (typeof user.avatarUrl === \"string\" && /^https?:\\/\\//.test(user.avatarUrl))).to.eql(true);",
                   "});",
                   "pm.environment.set(\"userId\", user.id);",
@@ -400,7 +373,7 @@
           ]
         },
         {
-          "name": "06 - Upload avatar",
+          "name": "Upload avatar",
           "request": {
             "method": "PUT",
             "header": [],
@@ -409,19 +382,20 @@
               "mode": "formdata",
               "formdata": [
                 {
-                  "key": "_charset_",
-                  "value": "UTF-8",
-                  "type": "text"
+                  "key": "data",
+                  "type": "text",
+                  "value": "{}",
+                  "contentType": "application/json"
                 },
                 {
-                  "key": "avatar",
+                  "key": "file",
                   "type": "file",
-                  "src": null,
-                  "description": "Pick a JPEG/PNG file of at most 5 MB before sending."
+                  "src": "docs/postman/fixtures/demo-avatar.png",
+                  "description": "Optional JPEG/PNG image."
                 }
               ]
             },
-            "description": "Body → form-data → avatar → Select Files: chọn JPEG/PNG tối đa 5 MB. Không tự đặt Content-Type; Postman thêm boundary. Nếu chưa chọn file, request tự bỏ qua. Trả 200 và avatarUrl ký sẵn. Dán URL vào trình duyệt để xem ảnh."
+            "description": "PUT {{baseUrl}}/api/v1/users/me. See ../api.md for the contract."
           },
           "event": [
             {
@@ -430,13 +404,14 @@
                 "type": "text/javascript",
                 "exec": [
                   "const parts = pm.request.body.formdata.toJSON();",
-                  "const avatar = parts.find(function (part) { return part.key === \"avatar\" && !part.disabled; });",
+                  "const avatar = parts.find(function (part) { return part.key === \"file\" && !part.disabled; });",
                   "const source = avatar && avatar.src;",
                   "const hasFile = typeof source === \"string\" ? source.length > 0 : Array.isArray(source) && source.length > 0;",
                   "if (!hasFile) {",
-                  "    console.info(\"Pick a JPEG/PNG file in Body → form-data → avatar before sending.\");",
+                  "    console.info(\"Pick a JPEG/PNG file in Body → form-data → file before sending.\");",
                   "    pm.execution.skipRequest();",
-                  "}"
+                  "}",
+                  "{const part=pm.request.body.formdata.find(x=>x.key===\"data\");const payload=JSON.parse(part.value);function resolveData(v){if(typeof v===\"string\")return pm.variables.replaceIn(v);if(Array.isArray(v))return v.map(resolveData);if(v&&typeof v===\"object\")Object.keys(v).forEach(k=>v[k]=resolveData(v[k]));return v;}resolveData(payload);if(\"trackNumber\" in payload)payload.trackNumber=Number(payload.trackNumber);if(Array.isArray(payload.genreIds))payload.genreIds=payload.genreIds.filter(x=>x.trim());part.value=JSON.stringify(payload);}"
                 ]
               }
             },
@@ -448,7 +423,7 @@
                   "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
                   "if (pm.response.code === 200) {",
                   "    const user = pm.response.json();",
-                  "pm.test(\"UserResponse đúng hợp đồng\", function () {",
+                  "pm.test(\"Response follows the API contract\", function () {",
                   "    pm.expect(user).to.have.all.keys(\"id\", \"username\", \"email\", \"createdAt\", \"role\", \"avatarUrl\");",
                   "    pm.expect(user.id).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);",
                   "    pm.expect(user.username).to.be.a(\"string\").and.not.empty;",
@@ -456,12 +431,12 @@
                   "    pm.expect([\"USER\", \"ADMIN\"]).to.include(user.role);",
                   "    pm.expect(Number.isNaN(Date.parse(user.createdAt))).to.eql(false);",
                   "});",
-                  "pm.test(\"Avatar là URL hoặc null\", function () {",
+                  "pm.test(\"Response follows the API contract\", function () {",
                   "    pm.expect(user.avatarUrl === null || (typeof user.avatarUrl === \"string\" && /^https?:\\/\\//.test(user.avatarUrl))).to.eql(true);",
                   "});",
                   "pm.environment.set(\"userId\", user.id);",
                   "pm.environment.set(\"avatarUrl\", user.avatarUrl || \"\");",
-                  "    pm.test(\"Upload trả URL ký sẵn\", function () { pm.expect(user.avatarUrl).to.be.a(\"string\").and.not.empty; });",
+                  "    pm.test(\"Response follows the API contract\", function () { pm.expect(user.avatarUrl).to.be.a(\"string\").and.not.empty; });",
                   "}"
                 ]
               }
@@ -469,7 +444,7 @@
           ]
         },
         {
-          "name": "07 - Remove avatar",
+          "name": "Remove avatar",
           "request": {
             "method": "PUT",
             "header": [],
@@ -478,15 +453,25 @@
               "mode": "formdata",
               "formdata": [
                 {
-                  "key": "_charset_",
-                  "value": "UTF-8",
-                  "type": "text"
+                  "key": "data",
+                  "type": "text",
+                  "value": "{}",
+                  "contentType": "application/json"
                 }
               ]
             },
-            "description": "Cập nhật hồ sơ bằng multipart chỉ có _charset_=UTF-8 và không có part avatar. Trả 200 với avatarUrl=null. Đây là cùng API PUT /users/me, không phải endpoint ảnh riêng."
+            "description": "PUT {{baseUrl}}/api/v1/users/me. See ../api.md for the contract."
           },
           "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "{const part=pm.request.body.formdata.find(x=>x.key===\"data\");const payload=JSON.parse(part.value);function resolveData(v){if(typeof v===\"string\")return pm.variables.replaceIn(v);if(Array.isArray(v))return v.map(resolveData);if(v&&typeof v===\"object\")Object.keys(v).forEach(k=>v[k]=resolveData(v[k]));return v;}resolveData(payload);if(\"trackNumber\" in payload)payload.trackNumber=Number(payload.trackNumber);if(Array.isArray(payload.genreIds))payload.genreIds=payload.genreIds.filter(x=>x.trim());part.value=JSON.stringify(payload);}"
+                ]
+              }
+            },
             {
               "listen": "test",
               "script": {
@@ -495,7 +480,7 @@
                   "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
                   "if (pm.response.code === 200) {",
                   "    const user = pm.response.json();",
-                  "pm.test(\"UserResponse đúng hợp đồng\", function () {",
+                  "pm.test(\"Response follows the API contract\", function () {",
                   "    pm.expect(user).to.have.all.keys(\"id\", \"username\", \"email\", \"createdAt\", \"role\", \"avatarUrl\");",
                   "    pm.expect(user.id).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);",
                   "    pm.expect(user.username).to.be.a(\"string\").and.not.empty;",
@@ -503,12 +488,12 @@
                   "    pm.expect([\"USER\", \"ADMIN\"]).to.include(user.role);",
                   "    pm.expect(Number.isNaN(Date.parse(user.createdAt))).to.eql(false);",
                   "});",
-                  "pm.test(\"Avatar là URL hoặc null\", function () {",
+                  "pm.test(\"Response follows the API contract\", function () {",
                   "    pm.expect(user.avatarUrl === null || (typeof user.avatarUrl === \"string\" && /^https?:\\/\\//.test(user.avatarUrl))).to.eql(true);",
                   "});",
                   "pm.environment.set(\"userId\", user.id);",
                   "pm.environment.set(\"avatarUrl\", user.avatarUrl || \"\");",
-                  "    pm.test(\"Avatar đã được xóa\", function () { pm.expect(user.avatarUrl).to.eql(null); });",
+                  "    pm.test(\"Response follows the API contract\", function () { pm.expect(user.avatarUrl).to.eql(null); });",
                   "}"
                 ]
               }
@@ -518,10 +503,10 @@
       ]
     },
     {
-      "name": "03 - Kiểm tra lỗi",
+      "name": "Authentication errors",
       "item": [
         {
-          "name": "08 - Register trùng tài khoản → 409",
+          "name": "Duplicate registration - 409",
           "request": {
             "auth": {
               "type": "noauth"
@@ -543,7 +528,7 @@
               }
             },
             "url": "{{baseUrl}}/api/v1/auth/register",
-            "description": "Chạy sau Register. Gửi lại cùng thông tin trong environment, không tạo tài khoản mới."
+            "description": "POST {{baseUrl}}/api/v1/auth/register. See ../api.md for the contract."
           },
           "event": [
             {
@@ -551,7 +536,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "// Serialize sau khi thay biến để mật khẩu chứa dấu nháy vẫn tạo JSON hợp lệ.",
+                  "// Resolve variables before serializing request data.",
                   "const payload = JSON.parse(pm.request.body.raw);",
                   "Object.keys(payload).forEach(function (key) {",
                   "    if (typeof payload[key] === \"string\") payload[key] = pm.variables.replaceIn(payload[key]);",
@@ -572,7 +557,7 @@
           ]
         },
         {
-          "name": "09 - Username chứa @ → 400",
+          "name": "Username contains @ - 400",
           "request": {
             "auth": {
               "type": "noauth"
@@ -594,7 +579,7 @@
               }
             },
             "url": "{{baseUrl}}/api/v1/auth/register",
-            "description": "Kiểm tra quy tắc username mới không chứa @."
+            "description": "POST {{baseUrl}}/api/v1/auth/register. See ../api.md for the contract."
           },
           "event": [
             {
@@ -602,7 +587,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "// Serialize sau khi thay biến để mật khẩu chứa dấu nháy vẫn tạo JSON hợp lệ.",
+                  "// Resolve variables before serializing request data.",
                   "const payload = JSON.parse(pm.request.body.raw);",
                   "Object.keys(payload).forEach(function (key) {",
                   "    if (typeof payload[key] === \"string\") payload[key] = pm.variables.replaceIn(payload[key]);",
@@ -623,7 +608,7 @@
           ]
         },
         {
-          "name": "10 - Email sai định dạng → 400",
+          "name": "Invalid email - 400",
           "request": {
             "auth": {
               "type": "noauth"
@@ -645,7 +630,7 @@
               }
             },
             "url": "{{baseUrl}}/api/v1/auth/register",
-            "description": "Kiểm tra validation email trước khi gọi service."
+            "description": "POST {{baseUrl}}/api/v1/auth/register. See ../api.md for the contract."
           },
           "event": [
             {
@@ -653,7 +638,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "// Serialize sau khi thay biến để mật khẩu chứa dấu nháy vẫn tạo JSON hợp lệ.",
+                  "// Resolve variables before serializing request data.",
                   "const payload = JSON.parse(pm.request.body.raw);",
                   "Object.keys(payload).forEach(function (key) {",
                   "    if (typeof payload[key] === \"string\") payload[key] = pm.variables.replaceIn(payload[key]);",
@@ -674,7 +659,7 @@
           ]
         },
         {
-          "name": "11 - Mật khẩu đăng ký ngắn → 400",
+          "name": "Short registration password - 400",
           "request": {
             "auth": {
               "type": "noauth"
@@ -696,7 +681,7 @@
               }
             },
             "url": "{{baseUrl}}/api/v1/auth/register",
-            "description": "Đăng ký mới yêu cầu tối thiểu 12 ký tự. Login với mật khẩu cũ vẫn được chấp nhận."
+            "description": "POST {{baseUrl}}/api/v1/auth/register. See ../api.md for the contract."
           },
           "event": [
             {
@@ -704,7 +689,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "// Serialize sau khi thay biến để mật khẩu chứa dấu nháy vẫn tạo JSON hợp lệ.",
+                  "// Resolve variables before serializing request data.",
                   "const payload = JSON.parse(pm.request.body.raw);",
                   "Object.keys(payload).forEach(function (key) {",
                   "    if (typeof payload[key] === \"string\") payload[key] = pm.variables.replaceIn(payload[key]);",
@@ -725,7 +710,7 @@
           ]
         },
         {
-          "name": "12 - Mật khẩu vượt 72 byte UTF-8 → 400",
+          "name": "Password exceeds 72 UTF-8 bytes - 400",
           "request": {
             "auth": {
               "type": "noauth"
@@ -747,7 +732,7 @@
               }
             },
             "url": "{{baseUrl}}/api/v1/auth/register",
-            "description": "25 ký tự € là 75 byte UTF-8. Kiểm tra giới hạn byte của BCrypt, khác với số ký tự."
+            "description": "POST {{baseUrl}}/api/v1/auth/register. See ../api.md for the contract."
           },
           "event": [
             {
@@ -755,7 +740,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "// Serialize sau khi thay biến để mật khẩu chứa dấu nháy vẫn tạo JSON hợp lệ.",
+                  "// Resolve variables before serializing request data.",
                   "const payload = JSON.parse(pm.request.body.raw);",
                   "Object.keys(payload).forEach(function (key) {",
                   "    if (typeof payload[key] === \"string\") payload[key] = pm.variables.replaceIn(payload[key]);",
@@ -776,7 +761,7 @@
           ]
         },
         {
-          "name": "13 - Login sai mật khẩu → 401",
+          "name": "Wrong password - 401",
           "request": {
             "auth": {
               "type": "noauth"
@@ -798,7 +783,7 @@
               }
             },
             "url": "{{baseUrl}}/api/v1/auth/login",
-            "description": "Trả cùng thông báo như tài khoản không tồn tại. Không thay token đang dùng."
+            "description": "POST {{baseUrl}}/api/v1/auth/login. See ../api.md for the contract."
           },
           "event": [
             {
@@ -806,7 +791,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "// Serialize sau khi thay biến để mật khẩu chứa dấu nháy vẫn tạo JSON hợp lệ.",
+                  "// Resolve variables before serializing request data.",
                   "const payload = JSON.parse(pm.request.body.raw);",
                   "Object.keys(payload).forEach(function (key) {",
                   "    if (typeof payload[key] === \"string\") payload[key] = pm.variables.replaceIn(payload[key]);",
@@ -821,7 +806,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP 401\", function () { pm.response.to.have.status(401); });",
-                  "pm.test(\"Thông báo đăng nhập thống nhất\", function () {",
+                  "pm.test(\"Consistent invalid-login response\", function () {",
                   "    pm.expect(pm.response.json().detail).to.eql(\"Invalid username, email or password.\");",
                   "});"
                 ]
@@ -830,7 +815,7 @@
           ]
         },
         {
-          "name": "14 - Login tài khoản không tồn tại → 401",
+          "name": "Missing account - 401",
           "request": {
             "auth": {
               "type": "noauth"
@@ -852,7 +837,7 @@
               }
             },
             "url": "{{baseUrl}}/api/v1/auth/login",
-            "description": "Tên ngẫu nhiên chưa đăng ký. Trả cùng thông báo với sai mật khẩu. Không đo thời gian tuyệt đối trong Postman."
+            "description": "POST {{baseUrl}}/api/v1/auth/login. See ../api.md for the contract."
           },
           "event": [
             {
@@ -860,7 +845,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "// Serialize sau khi thay biến để mật khẩu chứa dấu nháy vẫn tạo JSON hợp lệ.",
+                  "// Resolve variables before serializing request data.",
                   "const payload = JSON.parse(pm.request.body.raw);",
                   "Object.keys(payload).forEach(function (key) {",
                   "    if (typeof payload[key] === \"string\") payload[key] = pm.variables.replaceIn(payload[key]);",
@@ -875,7 +860,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP 401\", function () { pm.response.to.have.status(401); });",
-                  "pm.test(\"Thông báo đăng nhập thống nhất\", function () {",
+                  "pm.test(\"Consistent invalid-login response\", function () {",
                   "    pm.expect(pm.response.json().detail).to.eql(\"Invalid username, email or password.\");",
                   "});"
                 ]
@@ -884,7 +869,7 @@
           ]
         },
         {
-          "name": "15 - Refresh token không hợp lệ → 401",
+          "name": "Invalid refresh token - 401",
           "request": {
             "auth": {
               "type": "noauth"
@@ -906,7 +891,7 @@
               }
             },
             "url": "{{baseUrl}}/api/v1/auth/refresh",
-            "description": "Token giả, không ảnh hưởng phiên đăng nhập hiện tại."
+            "description": "POST {{baseUrl}}/api/v1/auth/refresh. See ../api.md for the contract."
           },
           "event": [
             {
@@ -914,7 +899,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "// Serialize sau khi thay biến để mật khẩu chứa dấu nháy vẫn tạo JSON hợp lệ.",
+                  "// Resolve variables before serializing request data.",
                   "const payload = JSON.parse(pm.request.body.raw);",
                   "Object.keys(payload).forEach(function (key) {",
                   "    if (typeof payload[key] === \"string\") payload[key] = pm.variables.replaceIn(payload[key]);",
@@ -935,7 +920,7 @@
           ]
         },
         {
-          "name": "16 - Profile không có Bearer → 401",
+          "name": "Missing bearer token - 401",
           "request": {
             "auth": {
               "type": "noauth"
@@ -943,7 +928,7 @@
             "method": "GET",
             "header": [],
             "url": "{{baseUrl}}/api/v1/users/me",
-            "description": "Cố ý bỏ Bearer để kiểm tra API yêu cầu đăng nhập."
+            "description": "GET {{baseUrl}}/api/v1/users/me. See ../api.md for the contract."
           },
           "event": [
             {
@@ -958,7 +943,7 @@
           ]
         },
         {
-          "name": "17 - Profile với JWT sai → 401",
+          "name": "Invalid JWT - 401",
           "request": {
             "auth": {
               "type": "bearer",
@@ -973,7 +958,7 @@
             "method": "GET",
             "header": [],
             "url": "{{baseUrl}}/api/v1/users/me",
-            "description": "Cố ý gửi JWT giả. Không thay token trong environment."
+            "description": "GET {{baseUrl}}/api/v1/users/me. See ../api.md for the contract."
           },
           "event": [
             {
@@ -990,10 +975,1817 @@
       ]
     },
     {
-      "name": "04 - Logout",
+      "name": "Admin workflow",
       "item": [
         {
-          "name": "18 - Logout",
+          "name": "Login as admin",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "description": "POST {{baseUrl}}/api/v1/auth/login. See ../api.md for the contract.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"usernameOrEmail\": \"{{adminUsername}}\",\n  \"password\": \"{{adminPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if(!pm.environment.get(\"adminUsername\")||!pm.environment.get(\"adminPassword\"))throw new Error(\"Set required environment variable: \");",
+                  "const payload=JSON.parse(pm.request.body.raw);",
+                  "function resolve(value){if(typeof value===\"string\")return pm.variables.replaceIn(value);if(Array.isArray(value))return value.map(resolve);if(value&&typeof value===\"object\")Object.keys(value).forEach(key=>value[key]=resolve(value[key]));return value;}",
+                  "pm.request.body.update(JSON.stringify(resolve(payload)));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",function(){pm.response.to.have.status(200);});",
+                  "if(pm.response.code===200){const body=pm.response.json();pm.test(\"Account has ADMIN role\",function(){pm.expect(body.user.role).to.eql(\"ADMIN\");});if(body.user.role===\"ADMIN\")pm.environment.set(\"adminAccessToken\",body.accessToken);else pm.environment.unset(\"adminAccessToken\");}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create genre",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/admin/genres",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "description": "POST {{baseUrl}}/api/v1/admin/genres. See ../api.md for the contract.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"{{genreName}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (String(pm.environment.get(\"autoGenerateData\")).toLowerCase()===\"true\") {",
+                  "    const names=[\"Pop\", \"Rock\", \"Jazz\", \"Electronic\"];",
+                  "    pm.environment.set(\"genreName\", names[Math.floor(Math.random()*names.length)]+\" demo \"+pm.variables.replaceIn(\"{{$guid}}\").replace(/-/g, \"\").slice(0, 8));",
+                  "}",
+                  "if(!pm.environment.get(\"genreName\")) throw new Error(\"Set required environment variable: \");",
+                  "const payload=JSON.parse(pm.request.body.raw);",
+                  "function resolve(value) {",
+                  "    if (typeof value === \"string\") return pm.variables.replaceIn(value);",
+                  "    if (Array.isArray(value)) return value.map(resolve);",
+                  "    if (value && typeof value === \"object\") Object.keys(value).forEach(key=>value[key]=resolve(value[key]));",
+                  "    return value;",
+                  "}",
+                  "const resolved=resolve(payload);",
+                  "pm.request.body.update(JSON.stringify(resolved));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\",function(){pm.response.to.have.status(201);});",
+                  "if(pm.response.code===201){pm.test(\"Response follows the API contract\",function(){pm.expect(pm.response.json()).to.have.all.keys(\"id\");});pm.environment.set(\"genreId\",pm.response.json().id);}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List genres as admin",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/genres?page={{genrePage}}&size={{genreSize}}",
+            "header": [],
+            "description": "GET {{baseUrl}}/api/v1/genres?page={{genrePage}}&size={{genreSize}}. See ../api.md for the contract."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if(pm.environment.get(\"genrePage\")==null || pm.environment.get(\"genrePage\")===\"\")pm.environment.set(\"genrePage\",\"0\");",
+                  "if(pm.environment.get(\"genreSize\")==null || pm.environment.get(\"genreSize\")===\"\")pm.environment.set(\"genreSize\",\"20\");"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",function(){pm.response.to.have.status(200);});",
+                  "if(pm.response.code===200){",
+                  "    const body=pm.response.json();",
+                  "    pm.test(\"Response follows the API contract\",function(){",
+                  "        pm.expect(body).to.have.all.keys(\"content\",\"page\",\"size\",\"hasNext\");",
+                  "        pm.expect(body.content).to.be.an(\"array\");",
+                  "        pm.expect(body.hasNext).to.be.a(\"boolean\");",
+                  "        pm.expect(body.content.length).to.be.at.most(Number(pm.variables.replaceIn(\"{{genreSize}}\")));",
+                  "    });",
+                  "    pm.test(\"Response follows the API contract\",function(){",
+                  "        body.content.forEach(item=>pm.expect(item).to.have.all.keys(\"id\",\"name\",\"slug\"));",
+                  "    });",
+                  "}",
+                  "if(pm.response.code===200){const b=pm.response.json();pm.test(\"Page and size match request\",function(){pm.expect(b.page).to.eql(Number(pm.variables.get(\"genrePage\")));pm.expect(b.size).to.eql(Number(pm.variables.get(\"genreSize\")));});}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create artist",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/admin/artists",
+            "header": [],
+            "description": "POST {{baseUrl}}/api/v1/admin/artists. See ../api.md for the contract.",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "data",
+                  "type": "text",
+                  "value": "{\n  \"name\": \"{{artistName}}\"\n}",
+                  "contentType": "application/json"
+                },
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "docs/postman/fixtures/demo-avatar.png",
+                  "description": "Optional JPEG/PNG image."
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if(String(pm.environment.get(\"autoGenerateData\")).toLowerCase()===\"true\") pm.environment.set(\"artistName\",\"Demo artist \"+pm.variables.replaceIn(\"{{$guid}}\").replace(/-/g, \"\").slice(0,8));",
+                  "if(!pm.environment.get(\"artistName\")) throw new Error(\"Set required environment variable: \");",
+                  "const imagePart=pm.request.body.formdata.find(part=>part.key==='file');",
+                  "if(imagePart && !imagePart.disabled) {",
+                  "    const source=imagePart.src;",
+                  "    if(!source || (Array.isArray(source) && source.length===0)) imagePart.disabled=true;",
+                  "}",
+                  "{const part=pm.request.body.formdata.find(x=>x.key===\"data\");const payload=JSON.parse(part.value);function resolveData(v){if(typeof v===\"string\")return pm.variables.replaceIn(v);if(Array.isArray(v))return v.map(resolveData);if(v&&typeof v===\"object\")Object.keys(v).forEach(k=>v[k]=resolveData(v[k]));return v;}resolveData(payload);if(\"trackNumber\" in payload)payload.trackNumber=Number(payload.trackNumber);if(Array.isArray(payload.genreIds))payload.genreIds=payload.genreIds.filter(x=>x.trim());part.value=JSON.stringify(payload);}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\",function(){pm.response.to.have.status(201);});",
+                  "if(pm.response.code===201){pm.test(\"Response follows the API contract\",function(){pm.expect(pm.response.json()).to.have.all.keys(\"id\");});pm.environment.set(\"artistId\",pm.response.json().id);}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create release",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/admin/releases",
+            "header": [],
+            "description": "POST {{baseUrl}}/api/v1/admin/releases. See ../api.md for the contract.",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "data",
+                  "type": "text",
+                  "value": "{\n  \"title\": \"{{releaseTitle}}\",\n  \"releaseType\": \"{{releaseType}}\",\n  \"releaseDate\": \"{{releaseDate}}\",\n  \"artistIds\": [\n    \"{{artistId}}\"\n  ],\n  \"genreIds\": [\n    \"{{genreId}}\"\n  ]\n}",
+                  "contentType": "application/json"
+                },
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "docs/postman/fixtures/demo-avatar.png",
+                  "description": "Optional JPEG/PNG image."
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if(String(pm.environment.get(\"autoGenerateData\")).toLowerCase()===\"true\") {",
+                  "    pm.environment.set(\"releaseTitle\",\"Album demo \"+pm.variables.replaceIn(\"{{$guid}}\").replace(/-/g, \"\").slice(0,8));",
+                  "    pm.environment.set(\"releaseDate\",new Date(Date.now()+7*60*60*1000).toISOString().slice(0,10));",
+                  "}",
+                  "[\"releaseTitle\",\"releaseType\",\"releaseDate\",\"artistId\"].forEach(key=>{if(!pm.environment.get(key)) throw new Error(\"Set required environment variable: \"+key+\" in the selected environment.\");});",
+                  "const imagePart=pm.request.body.formdata.find(part=>part.key==='file');",
+                  "if(imagePart && !imagePart.disabled) {",
+                  "    const source=imagePart.src;",
+                  "    if(!source || (Array.isArray(source) && source.length===0)) imagePart.disabled=true;",
+                  "}",
+                  "{const part=pm.request.body.formdata.find(x=>x.key===\"data\");const payload=JSON.parse(part.value);function resolveData(v){if(typeof v===\"string\")return pm.variables.replaceIn(v);if(Array.isArray(v))return v.map(resolveData);if(v&&typeof v===\"object\")Object.keys(v).forEach(k=>v[k]=resolveData(v[k]));return v;}resolveData(payload);if(\"trackNumber\" in payload)payload.trackNumber=Number(payload.trackNumber);if(Array.isArray(payload.genreIds))payload.genreIds=payload.genreIds.filter(x=>x.trim());part.value=JSON.stringify(payload);}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\",function(){pm.response.to.have.status(201);});",
+                  "if(pm.response.code===201){pm.test(\"Response follows the API contract\",function(){pm.expect(pm.response.json()).to.have.all.keys(\"id\");});pm.environment.set(\"releaseId\",pm.response.json().id);}",
+                  "if(pm.response.code===201){pm.environment.unset(\"songId\");pm.environment.set(\"trackNumber\",\"1\");}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Upload FLAC song",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/admin/releases/{{releaseId}}/songs",
+            "header": [],
+            "description": "POST {{baseUrl}}/api/v1/admin/releases/{{releaseId}}/songs. See ../api.md for the contract.",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "data",
+                  "type": "text",
+                  "value": "{\n  \"trackNumber\": \"{{trackNumber}}\",\n  \"title\": \"{{songTitle}}\"\n}",
+                  "contentType": "application/json"
+                },
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "docs/postman/fixtures/demo-tone.flac",
+                  "description": "Required FLAC file."
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (String(pm.environment.get(\"autoGenerateData\")).toLowerCase()===\"true\") pm.environment.set(\"songTitle\", \"Demo song \"+pm.variables.replaceIn(\"{{$guid}}\").replace(/-/g, \"\").slice(0, 8));",
+                  "if(!pm.environment.get(\"songTitle\"))pm.environment.set(\"songTitle\",\"Demo song\");",
+                  "const part=pm.request.body.formdata.toJSON().find(item=>item.key===\"file\"&&!item.disabled);const src=part&&part.src;if(!(typeof src===\"string\"&&src.length||Array.isArray(src)&&src.length)){console.info(\"Select a FLAC file in the file part.\");pm.execution.skipRequest();}",
+                  "{const part=pm.request.body.formdata.find(x=>x.key===\"data\");const payload=JSON.parse(part.value);function resolveData(v){if(typeof v===\"string\")return pm.variables.replaceIn(v);if(Array.isArray(v))return v.map(resolveData);if(v&&typeof v===\"object\")Object.keys(v).forEach(k=>v[k]=resolveData(v[k]));return v;}resolveData(payload);if(\"trackNumber\" in payload)payload.trackNumber=Number(payload.trackNumber);if(Array.isArray(payload.genreIds))payload.genreIds=payload.genreIds.filter(x=>x.trim());part.value=JSON.stringify(payload);}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\",function(){pm.response.to.have.status(201);});",
+                  "if(pm.response.code===201){pm.test(\"Response follows the API contract\",function(){pm.expect(pm.response.json()).to.have.all.keys(\"id\");});pm.environment.set(\"songId\",pm.response.json().id);}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Audio low",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/songs/{{songId}}/audio/low",
+            "header": [],
+            "description": "GET {{baseUrl}}/api/v1/songs/{{songId}}/audio/low. See ../api.md for the contract."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if(!pm.environment.get(\"songId\")){console.info(\"Upload a song first to obtain songId.\");pm.execution.skipRequest();}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 302\",function(){pm.response.to.have.status(302);});",
+                  "if(pm.response.code===302)pm.test(\"Location includes storage signature\",function(){pm.expect(pm.response.headers.get(\"Location\")).to.include(\"X-Amz-Signature=\");});"
+                ]
+              }
+            }
+          ],
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          }
+        },
+        {
+          "name": "Audio medium",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/songs/{{songId}}/audio/medium",
+            "header": [],
+            "description": "GET {{baseUrl}}/api/v1/songs/{{songId}}/audio/medium. See ../api.md for the contract."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if(!pm.environment.get(\"songId\")){console.info(\"Upload a song first to obtain songId.\");pm.execution.skipRequest();}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 302\",function(){pm.response.to.have.status(302);});",
+                  "if(pm.response.code===302)pm.test(\"Location includes storage signature\",function(){pm.expect(pm.response.headers.get(\"Location\")).to.include(\"X-Amz-Signature=\");});"
+                ]
+              }
+            }
+          ],
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          }
+        },
+        {
+          "name": "Audio high",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/songs/{{songId}}/audio/high",
+            "header": [],
+            "description": "GET {{baseUrl}}/api/v1/songs/{{songId}}/audio/high. See ../api.md for the contract."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if(!pm.environment.get(\"songId\")){console.info(\"Upload a song first to obtain songId.\");pm.execution.skipRequest();}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 302\",function(){pm.response.to.have.status(302);});",
+                  "if(pm.response.code===302)pm.test(\"Location includes storage signature\",function(){pm.expect(pm.response.headers.get(\"Location\")).to.include(\"X-Amz-Signature=\");});"
+                ]
+              }
+            }
+          ],
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          }
+        },
+        {
+          "name": "Audio lossless",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/songs/{{songId}}/audio/lossless",
+            "header": [],
+            "description": "GET {{baseUrl}}/api/v1/songs/{{songId}}/audio/lossless. See ../api.md for the contract."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if(!pm.environment.get(\"songId\")){console.info(\"Upload a song first to obtain songId.\");pm.execution.skipRequest();}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 302\",function(){pm.response.to.have.status(302);});",
+                  "if(pm.response.code===302)pm.test(\"Location includes storage signature\",function(){pm.expect(pm.response.headers.get(\"Location\")).to.include(\"X-Amz-Signature=\");});"
+                ]
+              }
+            }
+          ],
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          }
+        },
+        {
+          "name": "Duplicate genre - 409",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/admin/genres",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "description": "POST {{baseUrl}}/api/v1/admin/genres. See ../api.md for the contract.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"{{genreName}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const payload=JSON.parse(pm.request.body.raw);",
+                  "function resolve(value){if(typeof value===\"string\")return pm.variables.replaceIn(value);if(Array.isArray(value))return value.map(resolve);if(value&&typeof value===\"object\")Object.keys(value).forEach(key=>value[key]=resolve(value[key]));return value;}",
+                  "pm.request.body.update(JSON.stringify(resolve(payload)));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 409\",function(){pm.response.to.have.status(409);});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Release without artists - 400",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/admin/releases",
+            "header": [],
+            "description": "POST {{baseUrl}}/api/v1/admin/releases. See ../api.md for the contract.",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "data",
+                  "type": "text",
+                  "value": "{\n  \"title\": \"Invalid\",\n  \"releaseType\": \"ALBUM\",\n  \"releaseDate\": \"2026-11-22\"\n}",
+                  "contentType": "application/json"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "{const part=pm.request.body.formdata.find(x=>x.key===\"data\");const payload=JSON.parse(part.value);function resolveData(v){if(typeof v===\"string\")return pm.variables.replaceIn(v);if(Array.isArray(v))return v.map(resolveData);if(v&&typeof v===\"object\")Object.keys(v).forEach(k=>v[k]=resolveData(v[k]));return v;}resolveData(payload);if(\"trackNumber\" in payload)payload.trackNumber=Number(payload.trackNumber);if(Array.isArray(payload.genreIds))payload.genreIds=payload.genreIds.filter(x=>x.trim());part.value=JSON.stringify(payload);}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 400\",function(){pm.response.to.have.status(400);});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete test comment as admin (optional)",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/v1/comments/{{commentId}}",
+            "header": [],
+            "description": "DELETE {{baseUrl}}/api/v1/comments/{{commentId}}. See ../api.md for the contract."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if(!pm.environment.get(\"commentId\")){console.info(\"No commentId; skipping optional deletion.\");pm.execution.skipRequest();}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 204\",function(){pm.response.to.have.status(204);});"
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          {
+            "key": "token",
+            "value": "{{adminAccessToken}}",
+            "type": "string"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Catalog and search",
+      "item": [
+        {
+          "name": "Login as user",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"usernameOrEmail\": \"{{username}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "POST {{baseUrl}}/api/v1/auth/login. See ../api.md for the contract."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function resolve(v){if(typeof v===\"string\")return pm.variables.replaceIn(v);if(Array.isArray(v))return v.map(resolve);if(v&&typeof v===\"object\")Object.keys(v).forEach(k=>v[k]=resolve(v[k]));return v;}",
+                  "pm.request.body.update(JSON.stringify(resolve(JSON.parse(pm.request.body.raw))));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",function(){pm.response.to.have.status(200);});",
+                  "if(pm.response.code===200){const b=pm.response.json();pm.environment.set(\"accessToken\",b.accessToken);pm.environment.set(\"refreshToken\",b.refreshToken);pm.environment.set(\"userId\",b.user.id);}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get release with songs",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/releases/{{releaseId}}?page={{page}}&size={{size}}",
+            "header": [],
+            "description": "GET {{baseUrl}}/api/v1/releases/{{releaseId}}?page={{page}}&size={{size}}. See ../api.md for the contract."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "[\"releaseId\"].forEach(key=>{if(!pm.variables.get(key))throw new Error(\"Set required environment variable: \"+key+\" in the selected environment.\");});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",function(){pm.response.to.have.status(200);});",
+                  "pm.test(\"Complete songs array\",()=>{const b=pm.response.json();pm.expect(b.songs).to.be.an(\"array\");pm.expect(b).not.to.have.property(\"summary\");});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get artist with releases",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/artists/{{artistId}}?page={{page}}&size={{size}}",
+            "header": [],
+            "description": "GET {{baseUrl}}/api/v1/artists/{{artistId}}?page={{page}}&size={{size}}. See ../api.md for the contract."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "[\"artistId\"].forEach(key=>{if(!pm.variables.get(key))throw new Error(\"Set required environment variable: \"+key+\" in the selected environment.\");});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",function(){pm.response.to.have.status(200);});",
+                  "pm.test(\"Complete releases array\",()=>{const b=pm.response.json();pm.expect(b.releases).to.be.an(\"array\");pm.expect(b).not.to.have.property(\"summary\");});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List genres",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/genres?page={{page}}&size={{size}}",
+            "header": [],
+            "description": "GET {{baseUrl}}/api/v1/genres?page={{page}}&size={{size}}. See ../api.md for the contract."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",function(){pm.response.to.have.status(200);});",
+                  "pm.test(\"PageResponse: content/page/size/hasNext\",function(){const b=pm.response.json();pm.expect(b).to.have.all.keys(\"content\",\"page\",\"size\",\"hasNext\");pm.expect(b.content).to.be.an(\"array\");pm.expect(b.page).to.eql(Number(pm.variables.get(\"page\")));pm.expect(b.size).to.eql(Number(pm.variables.get(\"size\")));pm.expect(b.hasNext).to.be.a(\"boolean\");});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Search all",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/search?q={{q}}&page={{page}}&size={{size}}",
+            "header": [],
+            "description": "GET {{baseUrl}}/api/v1/search?q={{q}}&page={{page}}&size={{size}}. See ../api.md for the contract."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",function(){pm.response.to.have.status(200);});",
+                  "pm.test(\"PageResponse: content/page/size/hasNext\",function(){const b=pm.response.json();pm.expect(b).to.have.all.keys(\"content\",\"page\",\"size\",\"hasNext\");pm.expect(b.content).to.be.an(\"array\");pm.expect(b.page).to.eql(Number(pm.variables.get(\"page\")));pm.expect(b.size).to.eql(Number(pm.variables.get(\"size\")));pm.expect(b.hasNext).to.be.a(\"boolean\");});",
+                  "pm.test(\"Mixed items include type and are flattened\",function(){pm.response.json().content.forEach(x=>{pm.expect(x.type).to.be.oneOf([\"SONG\",\"RELEASE\",\"PLAYLIST\",\"ARTIST\"]);pm.expect(x).not.to.have.property(\"item\");});});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Search songs",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/search/songs?q={{q}}&page={{page}}&size={{size}}",
+            "header": [],
+            "description": "GET {{baseUrl}}/api/v1/search/songs?q={{q}}&page={{page}}&size={{size}}. See ../api.md for the contract."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",function(){pm.response.to.have.status(200);});",
+                  "pm.test(\"PageResponse: content/page/size/hasNext\",function(){const b=pm.response.json();pm.expect(b).to.have.all.keys(\"content\",\"page\",\"size\",\"hasNext\");pm.expect(b.content).to.be.an(\"array\");pm.expect(b.page).to.eql(Number(pm.variables.get(\"page\")));pm.expect(b.size).to.eql(Number(pm.variables.get(\"size\")));pm.expect(b.hasNext).to.be.a(\"boolean\");});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Search releases",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/search/releases?q={{q}}&page={{page}}&size={{size}}",
+            "header": [],
+            "description": "GET {{baseUrl}}/api/v1/search/releases?q={{q}}&page={{page}}&size={{size}}. See ../api.md for the contract."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",function(){pm.response.to.have.status(200);});",
+                  "pm.test(\"PageResponse: content/page/size/hasNext\",function(){const b=pm.response.json();pm.expect(b).to.have.all.keys(\"content\",\"page\",\"size\",\"hasNext\");pm.expect(b.content).to.be.an(\"array\");pm.expect(b.page).to.eql(Number(pm.variables.get(\"page\")));pm.expect(b.size).to.eql(Number(pm.variables.get(\"size\")));pm.expect(b.hasNext).to.be.a(\"boolean\");});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Search playlists",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/search/playlists?q={{q}}&page={{page}}&size={{size}}",
+            "header": [],
+            "description": "GET {{baseUrl}}/api/v1/search/playlists?q={{q}}&page={{page}}&size={{size}}. See ../api.md for the contract."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",function(){pm.response.to.have.status(200);});",
+                  "pm.test(\"PageResponse: content/page/size/hasNext\",function(){const b=pm.response.json();pm.expect(b).to.have.all.keys(\"content\",\"page\",\"size\",\"hasNext\");pm.expect(b.content).to.be.an(\"array\");pm.expect(b.page).to.eql(Number(pm.variables.get(\"page\")));pm.expect(b.size).to.eql(Number(pm.variables.get(\"size\")));pm.expect(b.hasNext).to.be.a(\"boolean\");});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Search artists",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/search/artists?q={{q}}&page={{page}}&size={{size}}",
+            "header": [],
+            "description": "GET {{baseUrl}}/api/v1/search/artists?q={{q}}&page={{page}}&size={{size}}. See ../api.md for the contract."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",function(){pm.response.to.have.status(200);});",
+                  "pm.test(\"PageResponse: content/page/size/hasNext\",function(){const b=pm.response.json();pm.expect(b).to.have.all.keys(\"content\",\"page\",\"size\",\"hasNext\");pm.expect(b.content).to.be.an(\"array\");pm.expect(b.page).to.eql(Number(pm.variables.get(\"page\")));pm.expect(b.size).to.eql(Number(pm.variables.get(\"size\")));pm.expect(b.hasNext).to.be.a(\"boolean\");});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Audio redirect Location",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/songs/{{songId}}/audio/low",
+            "header": [],
+            "description": "GET {{baseUrl}}/api/v1/songs/{{songId}}/audio/low. See ../api.md for the contract."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "[\"songId\"].forEach(key=>{if(!pm.variables.get(key))throw new Error(\"Set required environment variable: \"+key+\" in the selected environment.\");});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 302\",function(){pm.response.to.have.status(302);});",
+                  "pm.test(\"Response follows the API contract\",function(){pm.expect(pm.response.headers.get(\"Location\")).to.include(\"X-Amz-Signature\");});"
+                ]
+              }
+            }
+          ],
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          }
+        }
+      ]
+    },
+    {
+      "name": "Playlists",
+      "item": [
+        {
+          "name": "Create private test playlist",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/playlists",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "data",
+                  "type": "text",
+                  "value": "{\n  \"title\": \"Playlist Demo Postman\",\n  \"isPrivate\": true\n}",
+                  "contentType": "application/json"
+                },
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "docs/postman/fixtures/demo-avatar.png",
+                  "disabled": false,
+                  "description": "Optional JPEG/PNG image."
+                }
+              ]
+            },
+            "description": "POST {{baseUrl}}/api/v1/playlists. See ../api.md for the contract."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "{const part=pm.request.body.formdata.find(x=>x.key===\"data\");const payload=JSON.parse(part.value);function resolveData(v){if(typeof v===\"string\")return pm.variables.replaceIn(v);if(Array.isArray(v))return v.map(resolveData);if(v&&typeof v===\"object\")Object.keys(v).forEach(k=>v[k]=resolveData(v[k]));return v;}resolveData(payload);if(\"trackNumber\" in payload)payload.trackNumber=Number(payload.trackNumber);if(Array.isArray(payload.genreIds))payload.genreIds=payload.genreIds.filter(x=>x.trim());part.value=JSON.stringify(payload);}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\",function(){pm.response.to.have.status(201);});",
+                  "if(pm.response.code===201)pm.environment.set(\"playlistId\",pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Replace playlist and make public",
+          "request": {
+            "method": "PUT",
+            "url": "{{baseUrl}}/api/v1/playlists/{{playlistId}}",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "data",
+                  "type": "text",
+                  "value": "{\n  \"title\": \"Playlist Demo Public\",\n  \"isPrivate\": false\n}",
+                  "contentType": "application/json"
+                },
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "docs/postman/fixtures/demo-avatar.png",
+                  "disabled": true,
+                  "description": "Optional JPEG/PNG image."
+                }
+              ]
+            },
+            "description": "PUT {{baseUrl}}/api/v1/playlists/{{playlistId}}. See ../api.md for the contract."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "{const part=pm.request.body.formdata.find(x=>x.key===\"data\");const payload=JSON.parse(part.value);function resolveData(v){if(typeof v===\"string\")return pm.variables.replaceIn(v);if(Array.isArray(v))return v.map(resolveData);if(v&&typeof v===\"object\")Object.keys(v).forEach(k=>v[k]=resolveData(v[k]));return v;}resolveData(payload);if(\"trackNumber\" in payload)payload.trackNumber=Number(payload.trackNumber);if(Array.isArray(payload.genreIds))payload.genreIds=payload.genreIds.filter(x=>x.trim());part.value=JSON.stringify(payload);}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 204\",function(){pm.response.to.have.status(204);});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Add song",
+          "request": {
+            "method": "PUT",
+            "url": "{{baseUrl}}/api/v1/playlists/{{playlistId}}/songs/{{songId}}",
+            "header": [],
+            "description": "PUT {{baseUrl}}/api/v1/playlists/{{playlistId}}/songs/{{songId}}. See ../api.md for the contract."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "[\"playlistId\",\"songId\"].forEach(key=>{if(!pm.variables.get(key))throw new Error(\"Set required environment variable: \"+key+\" in the selected environment.\");});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 204\",function(){pm.response.to.have.status(204);});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Add same song again (idempotent)",
+          "request": {
+            "method": "PUT",
+            "url": "{{baseUrl}}/api/v1/playlists/{{playlistId}}/songs/{{songId}}",
+            "header": [],
+            "description": "PUT {{baseUrl}}/api/v1/playlists/{{playlistId}}/songs/{{songId}}. See ../api.md for the contract."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "[\"playlistId\",\"songId\"].forEach(key=>{if(!pm.variables.get(key))throw new Error(\"Set required environment variable: \"+key+\" in the selected environment.\");});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 204\",function(){pm.response.to.have.status(204);});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get playlist with songs",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/playlists/{{playlistId}}?page={{page}}&size={{size}}",
+            "header": [],
+            "description": "GET {{baseUrl}}/api/v1/playlists/{{playlistId}}?page={{page}}&size={{size}}. See ../api.md for the contract."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "[\"playlistId\"].forEach(key=>{if(!pm.variables.get(key))throw new Error(\"Set required environment variable: \"+key+\" in the selected environment.\");});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",function(){pm.response.to.have.status(200);});",
+                  "pm.test(\"Complete songs array\",()=>{const b=pm.response.json();pm.expect(b.songs).to.be.an(\"array\");pm.expect(b).not.to.have.property(\"summary\");});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reorder complete song list",
+          "request": {
+            "method": "PUT",
+            "url": "{{baseUrl}}/api/v1/playlists/{{playlistId}}/songs",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "[\n  \"{{songId}}\"\n]",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "PUT {{baseUrl}}/api/v1/playlists/{{playlistId}}/songs. See ../api.md for the contract."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "[\"playlistId\",\"songId\"].forEach(key=>{if(!pm.variables.get(key))throw new Error(\"Set required environment variable: \"+key+\" in the selected environment.\");});",
+                  "function resolve(v){if(typeof v===\"string\")return pm.variables.replaceIn(v);if(Array.isArray(v))return v.map(resolve);if(v&&typeof v===\"object\")Object.keys(v).forEach(k=>v[k]=resolve(v[k]));return v;}",
+                  "pm.request.body.update(JSON.stringify(resolve(JSON.parse(pm.request.body.raw))));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 204\",function(){pm.response.to.have.status(204);});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Library",
+      "item": [
+        {
+          "name": "Save release",
+          "request": {
+            "method": "PUT",
+            "url": "{{baseUrl}}/api/v1/library/releases/{{releaseId}}",
+            "header": [],
+            "description": "PUT {{baseUrl}}/api/v1/library/releases/{{releaseId}}. See ../api.md for the contract."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "[\"releaseId\"].forEach(key=>{if(!pm.variables.get(key))throw new Error(\"Set required environment variable: \"+key+\" in the selected environment.\");});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 204\",function(){pm.response.to.have.status(204);});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Save playlist",
+          "request": {
+            "method": "PUT",
+            "url": "{{baseUrl}}/api/v1/library/playlists/{{playlistId}}",
+            "header": [],
+            "description": "PUT {{baseUrl}}/api/v1/library/playlists/{{playlistId}}. See ../api.md for the contract."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "[\"playlistId\"].forEach(key=>{if(!pm.variables.get(key))throw new Error(\"Set required environment variable: \"+key+\" in the selected environment.\");});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 204\",function(){pm.response.to.have.status(204);});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Follow artist",
+          "request": {
+            "method": "PUT",
+            "url": "{{baseUrl}}/api/v1/library/artists/{{artistId}}",
+            "header": [],
+            "description": "PUT {{baseUrl}}/api/v1/library/artists/{{artistId}}. See ../api.md for the contract."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "[\"artistId\"].forEach(key=>{if(!pm.variables.get(key))throw new Error(\"Set required environment variable: \"+key+\" in the selected environment.\");});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 204\",function(){pm.response.to.have.status(204);});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Favorite song",
+          "request": {
+            "method": "PUT",
+            "url": "{{baseUrl}}/api/v1/library/songs/{{songId}}",
+            "header": [],
+            "description": "PUT {{baseUrl}}/api/v1/library/songs/{{songId}}. See ../api.md for the contract."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "[\"songId\"].forEach(key=>{if(!pm.variables.get(key))throw new Error(\"Set required environment variable: \"+key+\" in the selected environment.\");});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 204\",function(){pm.response.to.have.status(204);});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List mixed library",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/library?sort=RECENT&page={{page}}&size={{size}}",
+            "header": [],
+            "description": "GET {{baseUrl}}/api/v1/library?sort=RECENT&page={{page}}&size={{size}}. See ../api.md for the contract."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",function(){pm.response.to.have.status(200);});",
+                  "pm.test(\"PageResponse: content/page/size/hasNext\",function(){const b=pm.response.json();pm.expect(b).to.have.all.keys(\"content\",\"page\",\"size\",\"hasNext\");pm.expect(b.content).to.be.an(\"array\");pm.expect(b.page).to.eql(Number(pm.variables.get(\"page\")));pm.expect(b.size).to.eql(Number(pm.variables.get(\"size\")));pm.expect(b.hasNext).to.be.a(\"boolean\");});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List saved releases",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/library/releases?sort=RECENT&page={{page}}&size={{size}}",
+            "header": [],
+            "description": "GET {{baseUrl}}/api/v1/library/releases?sort=RECENT&page={{page}}&size={{size}}. See ../api.md for the contract."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",function(){pm.response.to.have.status(200);});",
+                  "pm.test(\"PageResponse: content/page/size/hasNext\",function(){const b=pm.response.json();pm.expect(b).to.have.all.keys(\"content\",\"page\",\"size\",\"hasNext\");pm.expect(b.content).to.be.an(\"array\");pm.expect(b.page).to.eql(Number(pm.variables.get(\"page\")));pm.expect(b.size).to.eql(Number(pm.variables.get(\"size\")));pm.expect(b.hasNext).to.be.a(\"boolean\");});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List saved playlists",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/library/playlists?sort=RECENT&page={{page}}&size={{size}}",
+            "header": [],
+            "description": "GET {{baseUrl}}/api/v1/library/playlists?sort=RECENT&page={{page}}&size={{size}}. See ../api.md for the contract."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",function(){pm.response.to.have.status(200);});",
+                  "pm.test(\"PageResponse: content/page/size/hasNext\",function(){const b=pm.response.json();pm.expect(b).to.have.all.keys(\"content\",\"page\",\"size\",\"hasNext\");pm.expect(b.content).to.be.an(\"array\");pm.expect(b.page).to.eql(Number(pm.variables.get(\"page\")));pm.expect(b.size).to.eql(Number(pm.variables.get(\"size\")));pm.expect(b.hasNext).to.be.a(\"boolean\");});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List followed artists",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/library/artists?sort=RECENT&page={{page}}&size={{size}}",
+            "header": [],
+            "description": "GET {{baseUrl}}/api/v1/library/artists?sort=RECENT&page={{page}}&size={{size}}. See ../api.md for the contract."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",function(){pm.response.to.have.status(200);});",
+                  "pm.test(\"PageResponse: content/page/size/hasNext\",function(){const b=pm.response.json();pm.expect(b).to.have.all.keys(\"content\",\"page\",\"size\",\"hasNext\");pm.expect(b.content).to.be.an(\"array\");pm.expect(b.page).to.eql(Number(pm.variables.get(\"page\")));pm.expect(b.size).to.eql(Number(pm.variables.get(\"size\")));pm.expect(b.hasNext).to.be.a(\"boolean\");});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List favorite songs",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/library/songs?sort=RECENT&page={{page}}&size={{size}}",
+            "header": [],
+            "description": "GET {{baseUrl}}/api/v1/library/songs?sort=RECENT&page={{page}}&size={{size}}. See ../api.md for the contract."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",function(){pm.response.to.have.status(200);});",
+                  "pm.test(\"PageResponse: content/page/size/hasNext\",function(){const b=pm.response.json();pm.expect(b).to.have.all.keys(\"content\",\"page\",\"size\",\"hasNext\");pm.expect(b.content).to.be.an(\"array\");pm.expect(b.page).to.eql(Number(pm.variables.get(\"page\")));pm.expect(b.size).to.eql(Number(pm.variables.get(\"size\")));pm.expect(b.hasNext).to.be.a(\"boolean\");});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List owned playlists",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/library/playlists?owned=true&sort=NAME&page={{page}}&size={{size}}",
+            "header": [],
+            "description": "GET {{baseUrl}}/api/v1/library/playlists?owned=true&sort=NAME&page={{page}}&size={{size}}. See ../api.md for the contract."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",function(){pm.response.to.have.status(200);});",
+                  "pm.test(\"PageResponse: content/page/size/hasNext\",function(){const b=pm.response.json();pm.expect(b).to.have.all.keys(\"content\",\"page\",\"size\",\"hasNext\");pm.expect(b.content).to.be.an(\"array\");pm.expect(b.page).to.eql(Number(pm.variables.get(\"page\")));pm.expect(b.size).to.eql(Number(pm.variables.get(\"size\")));pm.expect(b.hasNext).to.be.a(\"boolean\");});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Filter library by name",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/library?q={{q}}&sort=NAME&page={{page}}&size={{size}}",
+            "header": [],
+            "description": "GET {{baseUrl}}/api/v1/library?q={{q}}&sort=NAME&page={{page}}&size={{size}}. See ../api.md for the contract."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",function(){pm.response.to.have.status(200);});",
+                  "pm.test(\"PageResponse: content/page/size/hasNext\",function(){const b=pm.response.json();pm.expect(b).to.have.all.keys(\"content\",\"page\",\"size\",\"hasNext\");pm.expect(b.content).to.be.an(\"array\");pm.expect(b.page).to.eql(Number(pm.variables.get(\"page\")));pm.expect(b.size).to.eql(Number(pm.variables.get(\"size\")));pm.expect(b.hasNext).to.be.a(\"boolean\");});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Sort library by artist or owner",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/library?sort=ARTIST&page={{page}}&size={{size}}",
+            "header": [],
+            "description": "GET {{baseUrl}}/api/v1/library?sort=ARTIST&page={{page}}&size={{size}}. See ../api.md for the contract."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",function(){pm.response.to.have.status(200);});",
+                  "pm.test(\"PageResponse: content/page/size/hasNext\",function(){const b=pm.response.json();pm.expect(b).to.have.all.keys(\"content\",\"page\",\"size\",\"hasNext\");pm.expect(b.content).to.be.an(\"array\");pm.expect(b.page).to.eql(Number(pm.variables.get(\"page\")));pm.expect(b.size).to.eql(Number(pm.variables.get(\"size\")));pm.expect(b.hasNext).to.be.a(\"boolean\");});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Unsave release",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/v1/library/releases/{{releaseId}}",
+            "header": [],
+            "description": "DELETE {{baseUrl}}/api/v1/library/releases/{{releaseId}}. See ../api.md for the contract."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "[\"releaseId\"].forEach(key=>{if(!pm.variables.get(key))throw new Error(\"Set required environment variable: \"+key+\" in the selected environment.\");});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 204\",function(){pm.response.to.have.status(204);});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Unfollow artist",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/v1/library/artists/{{artistId}}",
+            "header": [],
+            "description": "DELETE {{baseUrl}}/api/v1/library/artists/{{artistId}}. See ../api.md for the contract."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "[\"artistId\"].forEach(key=>{if(!pm.variables.get(key))throw new Error(\"Set required environment variable: \"+key+\" in the selected environment.\");});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 204\",function(){pm.response.to.have.status(204);});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Unfavorite song",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/v1/library/songs/{{songId}}",
+            "header": [],
+            "description": "DELETE {{baseUrl}}/api/v1/library/songs/{{songId}}. See ../api.md for the contract."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "[\"songId\"].forEach(key=>{if(!pm.variables.get(key))throw new Error(\"Set required environment variable: \"+key+\" in the selected environment.\");});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 204\",function(){pm.response.to.have.status(204);});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Unsave own playlist - 400",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/v1/library/playlists/{{playlistId}}",
+            "header": [],
+            "description": "DELETE {{baseUrl}}/api/v1/library/playlists/{{playlistId}}. See ../api.md for the contract."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "[\"playlistId\"].forEach(key=>{if(!pm.variables.get(key))throw new Error(\"Set required environment variable: \"+key+\" in the selected environment.\");});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 400\",function(){pm.response.to.have.status(400);});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Comments",
+      "item": [
+        {
+          "name": "Create comment",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/songs/{{songId}}/comments",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"This song sounds great.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "POST {{baseUrl}}/api/v1/songs/{{songId}}/comments. See ../api.md for the contract."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "[\"songId\"].forEach(key=>{if(!pm.variables.get(key))throw new Error(\"Set required environment variable: \"+key+\" in the selected environment.\");});",
+                  "function resolve(v){if(typeof v===\"string\")return pm.variables.replaceIn(v);if(Array.isArray(v))return v.map(resolve);if(v&&typeof v===\"object\")Object.keys(v).forEach(k=>v[k]=resolve(v[k]));return v;}",
+                  "pm.request.body.update(JSON.stringify(resolve(JSON.parse(pm.request.body.raw))));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\",function(){pm.response.to.have.status(201);});",
+                  "if(pm.response.code===201)pm.environment.set(\"commentId\",pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reply to comment",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/comments/{{commentId}}/replies",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"I like this song too.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "POST {{baseUrl}}/api/v1/comments/{{commentId}}/replies. See ../api.md for the contract."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "[\"commentId\"].forEach(key=>{if(!pm.variables.get(key))throw new Error(\"Set required environment variable: \"+key+\" in the selected environment.\");});",
+                  "function resolve(v){if(typeof v===\"string\")return pm.variables.replaceIn(v);if(Array.isArray(v))return v.map(resolve);if(v&&typeof v===\"object\")Object.keys(v).forEach(k=>v[k]=resolve(v[k]));return v;}",
+                  "pm.request.body.update(JSON.stringify(resolve(JSON.parse(pm.request.body.raw))));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\",function(){pm.response.to.have.status(201);});",
+                  "if(pm.response.code===201)pm.environment.set(\"replyId\",pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List comments",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/songs/{{songId}}/comments?page={{page}}&size={{size}}",
+            "header": [],
+            "description": "GET {{baseUrl}}/api/v1/songs/{{songId}}/comments?page={{page}}&size={{size}}. See ../api.md for the contract."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "[\"songId\"].forEach(key=>{if(!pm.variables.get(key))throw new Error(\"Set required environment variable: \"+key+\" in the selected environment.\");});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",function(){pm.response.to.have.status(200);});",
+                  "pm.test(\"PageResponse: content/page/size/hasNext\",function(){const b=pm.response.json();pm.expect(b).to.have.all.keys(\"content\",\"page\",\"size\",\"hasNext\");pm.expect(b.content).to.be.an(\"array\");pm.expect(b.page).to.eql(Number(pm.variables.get(\"page\")));pm.expect(b.size).to.eql(Number(pm.variables.get(\"size\")));pm.expect(b.hasNext).to.be.a(\"boolean\");});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List replies",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/comments/{{commentId}}/replies?page={{page}}&size={{size}}",
+            "header": [],
+            "description": "GET {{baseUrl}}/api/v1/comments/{{commentId}}/replies?page={{page}}&size={{size}}. See ../api.md for the contract."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "[\"commentId\"].forEach(key=>{if(!pm.variables.get(key))throw new Error(\"Set required environment variable: \"+key+\" in the selected environment.\");});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",function(){pm.response.to.have.status(200);});",
+                  "pm.test(\"PageResponse: content/page/size/hasNext\",function(){const b=pm.response.json();pm.expect(b).to.have.all.keys(\"content\",\"page\",\"size\",\"hasNext\");pm.expect(b.content).to.be.an(\"array\");pm.expect(b.page).to.eql(Number(pm.variables.get(\"page\")));pm.expect(b.size).to.eql(Number(pm.variables.get(\"size\")));pm.expect(b.hasNext).to.be.a(\"boolean\");});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reply to reply - 400",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/comments/{{replyId}}/replies",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"Nested replies are not allowed.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "POST {{baseUrl}}/api/v1/comments/{{replyId}}/replies. See ../api.md for the contract."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "[\"replyId\"].forEach(key=>{if(!pm.variables.get(key))throw new Error(\"Set required environment variable: \"+key+\" in the selected environment.\");});",
+                  "function resolve(v){if(typeof v===\"string\")return pm.variables.replaceIn(v);if(Array.isArray(v))return v.map(resolve);if(v&&typeof v===\"object\")Object.keys(v).forEach(k=>v[k]=resolve(v[k]));return v;}",
+                  "pm.request.body.update(JSON.stringify(resolve(JSON.parse(pm.request.body.raw))));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 400\",function(){pm.response.to.have.status(400);});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete comment and replies",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/v1/comments/{{commentId}}",
+            "header": [],
+            "description": "DELETE {{baseUrl}}/api/v1/comments/{{commentId}}. See ../api.md for the contract."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "[\"commentId\"].forEach(key=>{if(!pm.variables.get(key))throw new Error(\"Set required environment variable: \"+key+\" in the selected environment.\");});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 204\",function(){pm.response.to.have.status(204);});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Playlist cleanup",
+      "item": [
+        {
+          "name": "Remove song from playlist",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/v1/playlists/{{playlistId}}/songs/{{songId}}",
+            "header": [],
+            "description": "DELETE {{baseUrl}}/api/v1/playlists/{{playlistId}}/songs/{{songId}}. See ../api.md for the contract."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "[\"playlistId\",\"songId\"].forEach(key=>{if(!pm.variables.get(key))throw new Error(\"Set required environment variable: \"+key+\" in the selected environment.\");});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 204\",function(){pm.response.to.have.status(204);});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete test playlist",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/v1/playlists/{{playlistId}}",
+            "header": [],
+            "description": "DELETE {{baseUrl}}/api/v1/playlists/{{playlistId}}. See ../api.md for the contract."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "[\"playlistId\"].forEach(key=>{if(!pm.variables.get(key))throw new Error(\"Set required environment variable: \"+key+\" in the selected environment.\");});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 204\",function(){pm.response.to.have.status(204);});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Deleted playlist - 404",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/playlists/{{playlistId}}",
+            "header": [],
+            "description": "GET {{baseUrl}}/api/v1/playlists/{{playlistId}}. See ../api.md for the contract."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "[\"playlistId\"].forEach(key=>{if(!pm.variables.get(key))throw new Error(\"Set required environment variable: \"+key+\" in the selected environment.\");});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\",function(){pm.response.to.have.status(404);});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Logout",
+      "item": [
+        {
+          "name": "Logout",
           "request": {
             "auth": {
               "type": "noauth"
@@ -1015,7 +2807,7 @@
               }
             },
             "url": "{{baseUrl}}/api/v1/auth/logout",
-            "description": "Thu hồi nhóm refresh token của phiên hiện tại. Tự xóa accessToken, refreshToken, userId, avatarUrl trong environment. Tạm giữ token đã thu hồi cho request 19. Access token đã cấp vẫn có hiệu lực đến khi hết hạn."
+            "description": "POST {{baseUrl}}/api/v1/auth/logout. See ../api.md for the contract."
           },
           "event": [
             {
@@ -1023,7 +2815,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "// Serialize sau khi thay biến để mật khẩu chứa dấu nháy vẫn tạo JSON hợp lệ.",
+                  "// Resolve variables before serializing request data.",
                   "const payload = JSON.parse(pm.request.body.raw);",
                   "Object.keys(payload).forEach(function (key) {",
                   "    if (typeof payload[key] === \"string\") payload[key] = pm.variables.replaceIn(payload[key]);",
@@ -1048,7 +2840,7 @@
           ]
         },
         {
-          "name": "19 - Refresh sau logout → 401",
+          "name": "Refresh after logout - 401",
           "request": {
             "auth": {
               "type": "noauth"
@@ -1070,7 +2862,7 @@
               }
             },
             "url": "{{baseUrl}}/api/v1/auth/refresh",
-            "description": "Chạy sau request 18. Xác nhận token vừa logout không thể dùng tiếp. Tự xóa biến tạm sau khi kiểm tra."
+            "description": "POST {{baseUrl}}/api/v1/auth/refresh. See ../api.md for the contract."
           },
           "event": [
             {
@@ -1078,8 +2870,8 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "if (!pm.environment.get(\"loggedOutRefreshToken\")) { console.info(\"Chạy request Logout trước.\"); pm.execution.skipRequest(); }",
-                  "// Serialize sau khi thay biến để mật khẩu chứa dấu nháy vẫn tạo JSON hợp lệ.",
+                  "if (!pm.environment.get(\"loggedOutRefreshToken\")) { console.info(\"Run Logout first.\"); pm.execution.skipRequest(); }",
+                  "// Resolve variables before serializing request data.",
                   "const payload = JSON.parse(pm.request.body.raw);",
                   "Object.keys(payload).forEach(function (key) {",
                   "    if (typeof payload[key] === \"string\") payload[key] = pm.variables.replaceIn(payload[key]);",
@@ -1101,6 +2893,18 @@
           ]
         }
       ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "if(pm.response.code>=400){pm.test(\"Errors use ProblemDetail\",()=>{const b=pm.response.json();pm.expect(b.status).to.eql(pm.response.code);pm.expect(b.detail).to.be.a(\"string\");});}",
+          "if(pm.response.code===200||pm.response.code===201){const body=pm.response.json();function visit(x){if(!x||typeof x!==\"object\")return;if(Array.isArray(x)){x.forEach(visit);return;}[\"isSaved\",\"isFollowed\",\"isFavorited\"].forEach(k=>pm.expect(x).not.to.have.property(k));[\"lastActivityAt\",\"followedAt\",\"favoritedAt\"].forEach(k=>{if(k in x)pm.expect(x[k]===null||typeof x[k]===\"string\"&&!Number.isNaN(Date.parse(x[k]))).to.eql(true);});Object.values(x).forEach(visit);}pm.test(\"Library state uses nullable timestamps\",()=>visit(body));}"
+        ]
+      }
     }
   ]
 }

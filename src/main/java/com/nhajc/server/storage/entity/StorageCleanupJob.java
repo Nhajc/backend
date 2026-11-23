@@ -12,12 +12,18 @@ public class StorageCleanupJob implements Persistable<String> {
     private String objectKey;
     @Column(name = "delete_after", nullable = false)
     private Instant deleteAfter;
+    @Column(nullable = false)
+    private boolean claimed;
     @Transient
     private boolean newEntity = true;
 
     protected StorageCleanupJob() {}
     public StorageCleanupJob(String key, Instant deleteAfter) { this.objectKey = key; this.deleteAfter = deleteAfter; }
     public String getObjectKey() { return objectKey; }
+    public void claimUntil(Instant retryAfter) {
+        claimed = true;
+        deleteAfter = retryAfter;
+    }
     @Override public String getId() { return objectKey; }
     @Override public boolean isNew() { return newEntity; }
     @PostLoad @PostPersist

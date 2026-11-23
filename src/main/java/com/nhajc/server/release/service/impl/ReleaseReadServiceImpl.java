@@ -5,10 +5,7 @@ import com.nhajc.server.release.repository.ReleaseRepository;
 import com.nhajc.server.song.repository.SongRepository;
 import com.nhajc.server.library.entity.*;
 import com.nhajc.server.library.repository.SavedReleaseRepository;
-import com.nhajc.server.common.dto.PageResponse;
 import com.nhajc.server.common.service.*;
-import com.nhajc.server.common.pagination.PageRequests;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -23,14 +20,13 @@ public class ReleaseReadServiceImpl implements ReleaseReadService {
         this.releases=releases;this.songs=songs;this.users=users;this.views=views;this.saved=saved;
     }
     @Override @Transactional
-    public ReleaseResponse get(UUID actor,UUID id,Pageable pageable) {
-        var page=PageRequests.of(pageable.getPageNumber(),pageable.getPageSize());
-        users.lock(actor);
+    public ReleaseResponse get(UUID actor,UUID id) {
+        users.require(actor);
         if(!releases.existsById(id))throw new ResponseStatusException(HttpStatus.NOT_FOUND,"Release not found.");
-        saved.findById(new LibraryId(actor,id)).ifPresent(LibraryEntry::touch);
-        var slice=songs.findByRelease_IdOrderByTrackNumberAscIdAsc(id,page);
-        var mapped=views.songs(slice.getContent().stream().map(song->song.getId()).toList(),actor);
-        return new ReleaseResponse(views.releases(List.of(id),actor).get(id),PageResponse.from(slice,song->mapped.get(song.getId()).summary()));
+        saved.touch(actor,id,java.time.Instant.now());
+        var values=songs.findByRelease_IdOrderByTrackNumberAscIdAsc(id);
+        var mapped=views.songs(values.stream().map(song->song.getId()).toList(),actor);
+        return new ReleaseResponse(views.releases(List.of(id),actor).get(id),values.stream().map(song->mapped.get(song.getId()).summary()).toList());
     }
 }
 

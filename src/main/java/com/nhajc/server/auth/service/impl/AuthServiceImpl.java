@@ -64,8 +64,7 @@ public class AuthServiceImpl implements AuthService {
                     "Password must be at most 72 UTF-8 bytes.");
         }
 
-        // Also prevent a new email from shadowing a legacy username containing @.
-        if (users.existsByLoginIdentifiers(username, email)) {
+        if (users.existsByUsernameIgnoreCase(username) || users.existsByEmailIgnoreCase(email)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "Username or email already exists.");
         }
@@ -84,11 +83,8 @@ public class AuthServiceImpl implements AuthService {
     @Transactional
     public AuthResponse login(LoginRequest request) {
         String identifier = request.usernameOrEmail().strip();
-        // Email owns the @ namespace. Fall back only for legacy usernames when
-        // no registered email matches; never try another account after a bad password.
         User user = (identifier.contains("@")
                 ? users.findByEmailIgnoreCase(identifier)
-                        .or(() -> users.findByUsernameIgnoreCase(identifier))
                 : users.findByUsernameIgnoreCase(identifier)).orElse(null);
 
         boolean tooLong = request.password().getBytes(StandardCharsets.UTF_8).length > 72;

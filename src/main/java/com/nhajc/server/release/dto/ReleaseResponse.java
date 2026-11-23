@@ -1,6 +1,6 @@
 package com.nhajc.server.release.dto;
 import com.fasterxml.jackson.annotation.JsonUnwrapped;
-import com.nhajc.server.common.dto.PageResponse;
+import java.util.List;
 import com.nhajc.server.song.dto.SongSummaryResponse;
-public record ReleaseResponse(@JsonUnwrapped ReleaseSummaryResponse summary, PageResponse<SongSummaryResponse> songs) {}
+public record ReleaseResponse(@JsonUnwrapped ReleaseSummaryResponse summary, List<SongSummaryResponse> songs) {}
 

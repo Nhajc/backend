@@ -17,13 +17,13 @@ public class CommentController {
     private final CommentService comments;
     public CommentController(CommentService comments) { this.comments=comments; }
     @GetMapping("/songs/{id}/comments")
-    public PageResponse<CommentResponse> list(@PathVariable UUID id,@RequestParam(defaultValue="0") int page,
-            @RequestParam(defaultValue="10") int size,@AuthenticationPrincipal Jwt jwt) {
+    public PageResponse<CommentResponse> list(@PathVariable UUID id,@RequestParam(defaultValue = PageRequests.DEFAULT_PAGE) int page,
+            @RequestParam(defaultValue = PageRequests.DEFAULT_COMMENT_SIZE) int size,@AuthenticationPrincipal Jwt jwt) {
         return comments.list(Actors.id(jwt),id,PageRequests.of(page,size));
     }
     @GetMapping("/comments/{id}/replies")
-    public PageResponse<CommentResponse> replies(@PathVariable UUID id,@RequestParam(defaultValue="0") int page,
-            @RequestParam(defaultValue="10") int size,@AuthenticationPrincipal Jwt jwt) {
+    public PageResponse<CommentResponse> replies(@PathVariable UUID id,@RequestParam(defaultValue = PageRequests.DEFAULT_PAGE) int page,
+            @RequestParam(defaultValue = PageRequests.DEFAULT_COMMENT_SIZE) int size,@AuthenticationPrincipal Jwt jwt) {
         return comments.replies(Actors.id(jwt),id,PageRequests.of(page,size));
     }
     @PostMapping("/songs/{id}/comments") @ResponseStatus(HttpStatus.CREATED)

@@ -1,20 +1,21 @@
 package com.nhajc.server.song.audio;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ResponseStatusException;
-import java.io.IOException;
+import javax.sound.sampled.*;
+import java.io.*;
 import java.nio.file.*;
 import java.util.*;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
-import javax.sound.sampled.*;
 
 @Component
 public class FlacAudioEncoder implements AudioEncoder {
-    private static final Logger log = LoggerFactory.getLogger(FlacAudioEncoder.class);
+    private static final long MAX_OUTPUT_BYTES = 300L * 1024 * 1024;
+    private static final long MAX_LOG_BYTES = 1024 * 1024;
     private final String flac;
     private final String fdkaac;
     private final int timeoutSeconds;
@@ -22,97 +23,145 @@ public class FlacAudioEncoder implements AudioEncoder {
     public FlacAudioEncoder(@Value("${audio.flac-command:flac}") String flac,
                             @Value("${audio.fdkaac-command:fdkaac}") String fdkaac,
                             @Value("${audio.command-timeout-seconds:180}") int timeoutSeconds) {
-        if (timeoutSeconds < 1 || timeoutSeconds > 600) throw new IllegalArgumentException("Audio timeout must be 1–600 seconds.");
-        this.flac = flac; this.fdkaac = fdkaac; this.timeoutSeconds = timeoutSeconds;
+        if (timeoutSeconds < 1 || timeoutSeconds > 600) {
+            throw new IllegalArgumentException("Audio timeout must be 1–600 seconds.");
+        }
+        this.flac = flac;
+        this.fdkaac = fdkaac;
+        this.timeoutSeconds = timeoutSeconds;
     }
 
     @Override
     public Map<String, Path> encode(Path original, Path directory, FlacMetadata metadata) {
-        Path wav = directory.resolve("decoded.wav");
-        Path normalized = directory.resolve("normalized.wav");
-        Path outputLog = directory.resolve("encoder.log");
-        long pcmBytes = metadata.samples() * metadata.channels() * 2;
+        Map<String, Path> files = new LinkedHashMap<>();
+        String[] qualities = {"low", "medium", "high"};
+        int[] bitrates = {64000, 128000, 256000};
         try {
-            run(List.of(flac, "--decode", "--silent", "--force", "--output-name=" + wav, original.toString()),
-                    wav, pcmBytes + 65536, outputLog, true);
-            // WAV contains only the decoded PCM plus a small RIFF header.
-            long decodedSize = Files.size(wav);
-            if (decodedSize < pcmBytes || decodedSize > pcmBytes + 65536) throw FlacMetadata.invalid();
-            Path aacInput = wav;
-            // AAC profiles have narrower sample-rate/bitrate combinations than FLAC.
-            // Convert uncommon rates and mono to 48 kHz stereo for all requested profiles.
-            if (metadata.channels() != 2 || metadata.sampleRate() != 44100 && metadata.sampleRate() != 48000) {
-                normalizePcm(wav, normalized);
-                aacInput = normalized;
+            for (int index = 0; index < qualities.length; index++) {
+                Path output = directory.resolve(qualities[index] + ".m4a");
+                encodeQuality(original, output, directory, metadata, index == 0 ? 5 : 2, bitrates[index]);
+                files.put(qualities[index], output);
             }
-            Map<String, Path> files = new LinkedHashMap<>();
-            String[] qualities = {"low", "medium", "high"};
-            int[] bitrates = {64000, 128000, 256000};
-            for (int i = 0; i < qualities.length; i++) {
-                Path output = directory.resolve(qualities[i] + ".m4a");
-                run(List.of(fdkaac, "--silent", "--profile", i == 0 ? "5" : "2", "--bitrate",
-                        Integer.toString(bitrates[i]), "-o", output.toString(), aacInput.toString()),
-                        output, 300L * 1024 * 1024, outputLog, false);
-                files.put(qualities[i], output);
-            }
-            files.put("lossless", original);
-            return files;
-        } catch (IOException exception) {
-            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Audio processing is temporarily unavailable.", exception);
-        } finally {
-            for (Path temporary : List.of(wav, normalized)) {
-                try { Files.deleteIfExists(temporary); }
-                catch (IOException exception) { log.warn("Unable to delete temporary WAV {}", temporary); }
-            }
-        }
-    }
-
-    static void normalizePcm(Path input, Path output) throws IOException {
-        AudioFormat target = new AudioFormat(48000, 16, 2, true, false);
-        try (var source = AudioSystem.getAudioInputStream(input.toFile());
-             var converted = AudioSystem.getAudioInputStream(target, source)) {
-            AudioSystem.write(converted, AudioFileFormat.Type.WAVE, output.toFile());
-        } catch (UnsupportedAudioFileException | IllegalArgumentException exception) {
-            throw FlacMetadata.invalid();
-        }
-    }
-
-    private void run(List<String> command, Path output, long maxBytes, Path outputLog, boolean decoding) throws IOException {
-        Process process;
-        try {
-            // Individual arguments, no shell; client filenames are never used in commands.
-            process = new ProcessBuilder(command).redirectErrorStream(true).redirectOutput(outputLog.toFile()).start();
         } catch (IOException exception) {
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
-                    "Audio tools unavailable. Configure AUDIO_FLAC_COMMAND and AUDIO_FDKAAC_COMMAND or run the Docker server.", exception);
+                    "Audio processing is temporarily unavailable.", exception);
         }
+        files.put("lossless", original);
+        return files;
+    }
+
+    private void encodeQuality(Path original, Path output, Path directory, FlacMetadata metadata,
+                               int profile, int bitrate) throws IOException {
+        Path decoderLog = directory.resolve(output.getFileName() + ".decode.log");
+        Path encoderLog = directory.resolve(output.getFileName() + ".encode.log");
+        float rate = metadata.channels() == 2
+                && (metadata.sampleRate() == 44100 || metadata.sampleRate() == 48000)
+                ? metadata.sampleRate() : 48000;
+        AudioFormat target = new AudioFormat(rate, 16, 2, true, false);
+        long maxPcmBytes = metadata.durationSeconds() * (long) rate * 4 + 65536;
+        Process decoder = null;
+        Process encoder = null;
+        FutureTask<Void> transfer = null;
         try {
-            process.getOutputStream().close();
-            long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(timeoutSeconds);
-            while (!process.waitFor(200, TimeUnit.MILLISECONDS)) {
-                if (Files.exists(output) && Files.size(output) > maxBytes) throw FlacMetadata.invalid();
-                if (Files.exists(outputLog) && Files.size(outputLog) > 1024 * 1024) throw FlacMetadata.invalid();
-                if (System.nanoTime() >= deadline) throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Audio processing timed out. Please retry.");
-            }
-            if (process.exitValue() != 0 || !Files.exists(output) || Files.size(output) == 0 || Files.size(output) > maxBytes) {
-                log.warn("Audio {} failed, exit code {}", decoding ? "decoding" : "encoding", process.exitValue());
-                if (decoding) throw FlacMetadata.invalid();
-                if (Files.exists(outputLog) && Files.size(outputLog) < 1024 * 1024
-                        && Files.readString(outputLog).contains("unsupported profile")) {
-                    throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
-                            "The installed FDK AAC library does not support HE-AAC. Install a full SBR-enabled build or use the Docker server.");
+            decoder = new ProcessBuilder(flac, "-dcs", original.toString())
+                    .redirectError(decoderLog.toFile()).start();
+            decoder.getOutputStream().close();
+            encoder = new ProcessBuilder(fdkaac, "--silent", "--moov-before-mdat",
+                    "--raw", "--raw-rate", Integer.toString((int) rate),
+                    "--raw-channels", "2", "--raw-format", "S16L",
+                    "--profile", Integer.toString(profile), "--bitrate", Integer.toString(bitrate),
+                    "-o", output.toString(), "-")
+                    .redirectError(encoderLog.toFile()).redirectOutput(ProcessBuilder.Redirect.DISCARD).start();
+            Process source = decoder;
+            Process destination = encoder;
+            transfer = new FutureTask<>(() -> {
+                try (var input = new BufferedInputStream(source.getInputStream());
+                     var sink = destination.getOutputStream()) {
+                    normalizePcm(input, sink, target, maxPcmBytes);
                 }
-                throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_CONTENT, "Audio cannot be encoded with the requested AAC profiles.");
+                return null;
+            });
+            Thread.ofVirtual().start(transfer);
+            long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(timeoutSeconds);
+            while (decoder.isAlive() || encoder.isAlive() || !transfer.isDone()) {
+                if (System.nanoTime() >= deadline) {
+                    throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Audio processing timed out.");
+                }
+                if (oversized(output, MAX_OUTPUT_BYTES)
+                        || oversized(decoderLog, MAX_LOG_BYTES) || oversized(encoderLog, MAX_LOG_BYTES)) {
+                    throw FlacMetadata.invalid();
+                }
+                if (transfer.isDone()) {
+                    if (!encoder.isAlive() && encoder.exitValue() != 0) throw encodingFailure(encoderLog);
+                    awaitTransfer(transfer);
+                }
+                Thread.sleep(100);
+            }
+            if (encoder.exitValue() != 0) throw encodingFailure(encoderLog);
+            if (decoder.exitValue() != 0) throw FlacMetadata.invalid();
+            awaitTransfer(transfer);
+            if (!Files.exists(output) || Files.size(output) == 0 || oversized(output, MAX_OUTPUT_BYTES)) {
+                throw encodingFailure(encoderLog);
             }
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Audio processing interrupted.", exception);
         } finally {
-            if (process.isAlive()) {
-                process.destroyForcibly();
-                try { process.waitFor(5, TimeUnit.SECONDS); }
-                catch (InterruptedException exception) { Thread.currentThread().interrupt(); }
+            stop(decoder);
+            stop(encoder);
+            if (transfer != null) transfer.cancel(true);
+        }
+    }
+
+    static void normalizePcm(InputStream input, OutputStream output, AudioFormat target, long maxBytes)
+            throws IOException {
+        try (var source = AudioSystem.getAudioInputStream(input);
+             var converted = AudioSystem.getAudioInputStream(target, source)) {
+            byte[] buffer = new byte[65536];
+            long total = 0;
+            int count;
+            while ((count = converted.read(buffer)) != -1) {
+                total += count;
+                if (total > maxBytes) throw FlacMetadata.invalid();
+                output.write(buffer, 0, count);
             }
+            if (total == 0) throw FlacMetadata.invalid();
+        } catch (UnsupportedAudioFileException | IllegalArgumentException exception) {
+            throw FlacMetadata.invalid();
+        }
+    }
+
+    private static boolean oversized(Path file, long limit) throws IOException {
+        return Files.exists(file) && Files.size(file) > limit;
+    }
+
+    private static void awaitTransfer(FutureTask<Void> transfer) throws InterruptedException {
+        try {
+            transfer.get();
+        } catch (ExecutionException exception) {
+            if (exception.getCause() instanceof ResponseStatusException response) throw response;
+            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_CONTENT,
+                    "Unable to stream decoded audio to the encoder.", exception.getCause());
+        }
+    }
+
+    private static ResponseStatusException encodingFailure(Path log) throws IOException {
+        if (Files.exists(log) && Files.size(log) <= MAX_LOG_BYTES
+                && Files.readString(log).contains("unsupported profile")) {
+            return new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
+                    "The installed FDK AAC library does not support HE-AAC.");
+        }
+        return new ResponseStatusException(HttpStatus.UNPROCESSABLE_CONTENT,
+                "Audio cannot be encoded with the requested AAC profile.");
+    }
+
+    private static void stop(Process process) {
+        if (process == null || !process.isAlive()) return;
+        process.destroyForcibly();
+        try {
+            process.waitFor(5, TimeUnit.SECONDS);
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
         }
     }
 }
