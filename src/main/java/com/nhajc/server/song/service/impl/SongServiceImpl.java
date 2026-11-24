@@ -47,11 +47,30 @@ public class SongServiceImpl implements SongService {
 
     @Override
     public UUID upload(UUID releaseId, UploadSongRequest request, MultipartFile file) {
+        Integer trackNumber = request.trackNumber();
+        if (trackNumber == null || trackNumber < 1) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A positive track number is required.");
+        if (songs.existsByRelease_IdAndTrackNumber(releaseId, trackNumber)) throw duplicateTrack();
+        return prepare(releaseId, file, prepared -> {
+            transaction.executeWithoutResult(status -> {
+                var release = releases.findByIdForUpdate(releaseId)
+                        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Release not found."));
+                if (songs.existsByRelease_IdAndTrackNumber(releaseId, trackNumber)) throw duplicateTrack();
+                songs.saveAndFlush(new Song(prepared.id(), request.title(), prepared.durationSeconds(), trackNumber, release, prepared.keys()));
+                if (prepared.coverKey() != null && releases.setCoverIfAbsent(releaseId, prepared.coverKey()) == 1) cleanup.completeUpload(prepared.coverKey());
+                prepared.keys().values().forEach(cleanup::completeUpload);
+            });
+            return prepared.id();
+        });
+    }
+
+    public record PreparedSong(UUID id, int durationSeconds, Map<String, String> keys, String coverKey) {}
+
+    /** Shared processing capacity for both direct publication and staged uploads. */
+    public UUID prepare(UUID releaseId, MultipartFile file, java.util.function.Function<PreparedSong, UUID> persist) {
         if (!slots.tryAcquire()) throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "At most two song uploads can be processed at once.");
         Path directory = null;
         try {
             if (!releases.existsById(releaseId)) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Release not found.");
-            if (songs.existsByRelease_IdAndTrackNumber(releaseId, request.trackNumber())) throw duplicateTrack();
             if (file.isEmpty()) throw FlacMetadata.invalid();
             if (file.getSize() > MAX_BYTES) throw tooLarge();
             directory = Files.createTempDirectory("nhajc-audio-");
@@ -83,17 +102,8 @@ public class SongServiceImpl implements SongService {
                 storage.upload(key, entry.getValue(), quality.equals("lossless") ? "audio/flac" : "audio/mp4");
                 keys.put(quality, key);
             }
-            String coverKey = images.upload("covers/releases/" + releaseId + "/cover", cover);
-            transaction.executeWithoutResult(status -> {
-                var release = releases.getReferenceById(releaseId);
-                if (songs.existsByRelease_IdAndTrackNumber(releaseId, request.trackNumber())) throw duplicateTrack();
-                songs.saveAndFlush(new Song(songId, request.title(), metadata.durationSeconds(), request.trackNumber(), release, keys));
-                if (coverKey != null && releases.setCoverIfAbsent(releaseId, coverKey) == 1) {
-                    cleanup.completeUpload(coverKey);
-                }
-                keys.values().forEach(cleanup::completeUpload);
-            });
-            return songId;
+            String coverKey = images.upload("covers/releases/" + releaseId + "/cover", cover, Duration.ofHours(2));
+            return persist.apply(new PreparedSong(songId, metadata.durationSeconds(), Map.copyOf(keys), coverKey));
         } catch (DataIntegrityViolationException exception) {
             throw DatabaseConflicts.translate(exception, "Track number already exists in this release.");
         } catch (IOException exception) {

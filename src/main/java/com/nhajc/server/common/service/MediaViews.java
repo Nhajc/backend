@@ -109,7 +109,7 @@ public class MediaViews {
             var release = song.getRelease();
             result.put(song.getId(), new SongResponse(new SongSummaryResponse(song.getId(), song.getTitle(),
                     song.getDurationSeconds(), song.getTrackNumber(), artistList(song.getArtists(), followed),
-                    saved.get(song.getId())), release.getId(), release.getTitle(), url(release.getCoverObjectKey())));
+                    saved.get(song.getId()), song.getDescription()), release.getId(), release.getTitle(), url(release.getCoverObjectKey())));
         }
         return result;
     }
