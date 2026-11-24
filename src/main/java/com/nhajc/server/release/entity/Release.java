@@ -22,7 +22,8 @@ public class Release extends UuidEntity {
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(name = "release_artists", joinColumns = @JoinColumn(name = "release_id"),
             inverseJoinColumns = @JoinColumn(name = "artist_id"))
-    private Set<Artist> artists = new LinkedHashSet<>();
+    @OrderColumn(name = "position")
+    private List<Artist> artists = new ArrayList<>();
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(name = "release_genres", joinColumns = @JoinColumn(name = "release_id"),
             inverseJoinColumns = @JoinColumn(name = "genre_id"))
@@ -30,7 +31,7 @@ public class Release extends UuidEntity {
 
     protected Release() {}
     public Release(UUID id, String title, ReleaseType type, LocalDate date, String cover,
-                   Set<Artist> artists, Set<Genre> genres) {
+                   List<Artist> artists, Set<Genre> genres) {
         super(id); this.title = title; this.releaseType = type; this.releaseDate = date;
         this.coverObjectKey = cover; this.artists.addAll(artists); this.genres.addAll(genres);
     }
@@ -38,6 +39,6 @@ public class Release extends UuidEntity {
     public ReleaseType getReleaseType() { return releaseType; }
     public LocalDate getReleaseDate() { return releaseDate; }
     public String getCoverObjectKey() { return coverObjectKey; }
-    public Set<Artist> getArtists() { return Collections.unmodifiableSet(artists); }
+    public List<Artist> getArtists() { return Collections.unmodifiableList(artists); }
     public void setCoverObjectKey(String key) { this.coverObjectKey = key; }
 }

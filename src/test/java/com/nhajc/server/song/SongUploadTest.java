@@ -43,7 +43,7 @@ class SongUploadTest {
         images=mock(ImageStorage.class);
         service = new SongServiceImpl(songs, releases, encoder, images, storage, cleanup, manager);
         when(releases.existsById(releaseId)).thenReturn(true);
-        when(releases.getReferenceById(releaseId)).thenReturn(new Release(releaseId, "Album", ReleaseType.ALBUM, LocalDate.now(), null, Set.of(), Set.of()));
+        when(releases.getReferenceById(releaseId)).thenReturn(new Release(releaseId, "Album", ReleaseType.ALBUM, LocalDate.now(), null, List.of(), Set.of()));
         when(encoder.encode(any(), any(), any())).thenAnswer(invocation -> {
             Path path = invocation.getArgument(0);
             return Map.of("low", path, "medium", path, "high", path, "lossless", path);

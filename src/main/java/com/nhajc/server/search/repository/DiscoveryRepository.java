@@ -51,7 +51,7 @@ public class DiscoveryRepository {
         String label=type==ItemType.ARTIST ? "e.name" : "e.title";
         String saved=switch(type){case SONG->"FavoriteSong";case RELEASE->"SavedRelease";case PLAYLIST->"SavedPlaylist";case ARTIST->"FollowedArtist";};
         String firstArtist=switch(type) {
-            case SONG,RELEASE -> "coalesce((select min(lower(a.name)) from "+entity+" x join x.artists a where x.id=e.id),'')";
+            case SONG,RELEASE -> "coalesce((select lower(a.name) from "+entity+" x join x.artists a where x.id=e.id and index(a)=0),'')";
             case PLAYLIST -> "lower(e.owner.username)";
             case ARTIST -> "lower(e.name)";
         };

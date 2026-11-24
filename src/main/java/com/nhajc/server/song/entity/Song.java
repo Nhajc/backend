@@ -21,7 +21,8 @@ public class Song extends UuidEntity {
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(name = "song_artists", joinColumns = @JoinColumn(name = "song_id"),
             inverseJoinColumns = @JoinColumn(name = "artist_id"))
-    private Set<Artist> artists = new LinkedHashSet<>();
+    @OrderColumn(name = "position")
+    private List<Artist> artists = new ArrayList<>();
     @OneToMany(mappedBy = "song", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<SongAudio> audio = new LinkedHashSet<>();
 
@@ -33,7 +34,7 @@ public class Song extends UuidEntity {
     }
     public String getTitle() { return title; }
     public Release getRelease() { return release; }
-    public Set<Artist> getArtists() { return Collections.unmodifiableSet(artists); }
+    public List<Artist> getArtists() { return Collections.unmodifiableList(artists); }
     public int getDurationSeconds() { return durationSeconds; }
     public int getTrackNumber() { return trackNumber; }
     public Set<SongAudio> getAudio() { return Collections.unmodifiableSet(audio); }
