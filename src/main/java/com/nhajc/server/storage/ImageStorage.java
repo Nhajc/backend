@@ -70,9 +70,14 @@ public class ImageStorage {
     }
 
     public String upload(String prefix, Image image) {
+        return upload(prefix, image, null);
+    }
+
+    public String upload(String prefix, Image image, java.time.Duration gracePeriod) {
         if (image == null) return null;
         String key = prefix + "." + UUID.randomUUID() + (image.contentType().equals("image/png") ? ".png" : ".jpg");
-        cleanup.reserveUpload(key);
+        if (gracePeriod == null) cleanup.reserveUpload(key);
+        else cleanup.reserveUpload(key, gracePeriod);
         storage.upload(key, image.bytes(), image.contentType());
         return key;
     }

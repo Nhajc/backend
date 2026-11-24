@@ -11,6 +11,8 @@ import java.util.*;
 public class Song extends UuidEntity {
     @Column(nullable = false, columnDefinition = "text")
     private String title;
+    @Column(columnDefinition = "text")
+    private String description;
     @Column(name = "duration_seconds", nullable = false)
     private int durationSeconds;
     @Column(name = "track_number", nullable = false)
@@ -33,9 +35,18 @@ public class Song extends UuidEntity {
         keys.forEach((quality, key) -> audio.add(new SongAudio(this, quality, key)));
     }
     public String getTitle() { return title; }
+    public String getDescription() { return description; }
+    public void setDetails(String description, List<Artist> artists) {
+        this.description = description;
+        this.artists.clear(); this.artists.addAll(artists);
+    }
     public Release getRelease() { return release; }
     public List<Artist> getArtists() { return Collections.unmodifiableList(artists); }
     public int getDurationSeconds() { return durationSeconds; }
     public int getTrackNumber() { return trackNumber; }
+    public void setTrackNumber(int trackNumber) {
+        if (trackNumber < 1) throw new IllegalArgumentException("Track number must be positive.");
+        this.trackNumber = trackNumber;
+    }
     public Set<SongAudio> getAudio() { return Collections.unmodifiableSet(audio); }
 }

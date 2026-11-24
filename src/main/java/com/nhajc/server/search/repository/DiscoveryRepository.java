@@ -20,9 +20,17 @@ public class DiscoveryRepository {
     public DiscoveryRepository(EntityManager entities) { this.entities=entities; }
 
     public PageResponse<Hit> find(UUID actor, ItemType type, String input, boolean library, Pageable pageable) {
+        return find(actor, type, input, library, false, pageable);
+    }
+
+    public PageResponse<Hit> browse(UUID actor, ItemType type, String input, Pageable pageable) {
+        return find(actor, Objects.requireNonNull(type), input == null || input.isBlank() ? null : input, false, true, pageable);
+    }
+
+    private PageResponse<Hit> find(UUID actor, ItemType type, String input, boolean library, boolean browse, Pageable pageable) {
         var page=pageable;
         String q=input==null ? null : input.strip().toLowerCase(Locale.ROOT);
-        if((!library&&q==null) || q!=null&&(q.isEmpty()||q.length()>100))
+        if((!library&&!browse&&q==null) || q!=null&&(q.isEmpty()||q.length()>100))
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"q must contain 1–100 characters.");
         List<ItemType> types=type!=null ? List.of(type) : library ? List.of(ItemType.RELEASE,ItemType.PLAYLIST) : List.of(ItemType.values());
         var branches=new ArrayList<String>();
