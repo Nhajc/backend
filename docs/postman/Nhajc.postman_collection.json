@@ -1835,7 +1835,7 @@
                 {
                   "key": "data",
                   "type": "text",
-                  "value": "{\n  \"title\": \"Playlist Demo Postman\",\n  \"isPrivate\": true\n}",
+                  "value": "{\n  \"title\": \"Playlist Demo Postman\",\n  \"isPrivate\": true,\n  \"songIds\": []\n}",
                   "contentType": "application/json"
                 },
                 {
@@ -1883,7 +1883,7 @@
                 {
                   "key": "data",
                   "type": "text",
-                  "value": "{\n  \"title\": \"Playlist Demo Public\",\n  \"isPrivate\": false\n}",
+                  "value": "{\n  \"title\": \"Playlist Demo Public\",\n  \"isPrivate\": false,\n  \"songIds\": []\n}",
                   "contentType": "application/json"
                 },
                 {
@@ -2007,26 +2007,23 @@
           ]
         },
         {
-          "name": "Reorder complete song list",
+          "name": "Replace songs (edit mode Save)",
           "request": {
             "method": "PUT",
-            "url": "{{baseUrl}}/api/v1/playlists/{{playlistId}}/songs",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
+            "url": "{{baseUrl}}/api/v1/playlists/{{playlistId}}",
+            "header": [],
             "body": {
-              "mode": "raw",
-              "raw": "[\n  \"{{songId}}\"\n]",
-              "options": {
-                "raw": {
-                  "language": "json"
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "data",
+                  "type": "text",
+                  "value": "{\n  \"title\": \"Playlist Demo Public\",\n  \"isPrivate\": false,\n  \"songIds\": [\n    \"{{songId}}\"\n  ]\n}",
+                  "contentType": "application/json"
                 }
-              }
+              ]
             },
-            "description": "PUT {{baseUrl}}/api/v1/playlists/{{playlistId}}/songs. See ../api.md for the contract."
+            "description": "PUT {{baseUrl}}/api/v1/playlists/{{playlistId}}. See ../api.md for the contract."
           },
           "event": [
             {
@@ -2034,9 +2031,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "[\"playlistId\",\"songId\"].forEach(key=>{if(!pm.variables.get(key))throw new Error(\"Set required environment variable: \"+key+\" in the selected environment.\");});",
-                  "function resolve(v){if(typeof v===\"string\")return pm.variables.replaceIn(v);if(Array.isArray(v))return v.map(resolve);if(v&&typeof v===\"object\")Object.keys(v).forEach(k=>v[k]=resolve(v[k]));return v;}",
-                  "pm.request.body.update(JSON.stringify(resolve(JSON.parse(pm.request.body.raw))));"
+                  "{const part=pm.request.body.formdata.find(x=>x.key===\"data\");const payload=JSON.parse(part.value);function resolveData(v){if(typeof v===\"string\")return pm.variables.replaceIn(v);if(Array.isArray(v))return v.map(resolveData);if(v&&typeof v===\"object\")Object.keys(v).forEach(k=>v[k]=resolveData(v[k]));return v;}resolveData(payload);if(\"trackNumber\" in payload)payload.trackNumber=Number(payload.trackNumber);if(Array.isArray(payload.genreIds))payload.genreIds=payload.genreIds.filter(x=>x.trim());part.value=JSON.stringify(payload);}"
                 ]
               }
             },
@@ -2693,12 +2688,23 @@
       "name": "Playlist cleanup",
       "item": [
         {
-          "name": "Remove song from playlist",
+          "name": "Remove all songs from playlist",
           "request": {
-            "method": "DELETE",
-            "url": "{{baseUrl}}/api/v1/playlists/{{playlistId}}/songs/{{songId}}",
+            "method": "PUT",
+            "url": "{{baseUrl}}/api/v1/playlists/{{playlistId}}",
             "header": [],
-            "description": "DELETE {{baseUrl}}/api/v1/playlists/{{playlistId}}/songs/{{songId}}. See ../api.md for the contract."
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "data",
+                  "type": "text",
+                  "value": "{\n  \"title\": \"Playlist Demo Public\",\n  \"isPrivate\": false,\n  \"songIds\": []\n}",
+                  "contentType": "application/json"
+                }
+              ]
+            },
+            "description": "PUT {{baseUrl}}/api/v1/playlists/{{playlistId}}. See ../api.md for the contract."
           },
           "event": [
             {
@@ -2706,7 +2712,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "[\"playlistId\",\"songId\"].forEach(key=>{if(!pm.variables.get(key))throw new Error(\"Set required environment variable: \"+key+\" in the selected environment.\");});"
+                  "{const part=pm.request.body.formdata.find(x=>x.key===\"data\");const payload=JSON.parse(part.value);function resolveData(v){if(typeof v===\"string\")return pm.variables.replaceIn(v);if(Array.isArray(v))return v.map(resolveData);if(v&&typeof v===\"object\")Object.keys(v).forEach(k=>v[k]=resolveData(v[k]));return v;}resolveData(payload);if(\"trackNumber\" in payload)payload.trackNumber=Number(payload.trackNumber);if(Array.isArray(payload.genreIds))payload.genreIds=payload.genreIds.filter(x=>x.trim());part.value=JSON.stringify(payload);}"
                 ]
               }
             },

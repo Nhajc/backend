@@ -24,7 +24,7 @@ Log in again to obtain an ADMIN access token. Fill adminUsername and adminPasswo
 
 Library timestamps are nullable ISO-8601 instants. null means the item is not saved/followed/favorited. Search, genres, comments and library use page envelopes. Release songs, playlist songs and artist releases are full arrays. Read every library page before comparing a refreshed snapshot against offline data; absence from one page does not imply removal.
 
-Fixtures and example request data are described in [fake-data.md](fake-data.md). Set Postman working directory to the repository root so fixture paths resolve. Multipart requests contain data (Text with Content-Type application/json) and file (File). Metadata is a JSON object with arrays and booleans. Image files are optional; omitting an image on PUT removes the existing image. Each playlist has its own cover.
+Fixtures and example request data are described in [fake-data.md](fake-data.md). Set Postman working directory to the repository root so fixture paths resolve. Multipart requests contain data (Text with Content-Type application/json) and file (File). Metadata is a JSON object with arrays and booleans. Image files are optional; omitting an image on PUT removes the avatar (#6) but keeps the playlist cover (#29). Each playlist has its own cover.
 
 ## Audio tools
 

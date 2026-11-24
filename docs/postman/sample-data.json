@@ -445,7 +445,7 @@
           {
             "key": "data",
             "type": "text",
-            "value": "{\n  \"title\": \"Playlist Demo Postman\",\n  \"isPrivate\": true\n}",
+            "value": "{\n  \"title\": \"Playlist Demo Postman\",\n  \"isPrivate\": true,\n  \"songIds\": []\n}",
             "contentType": "application/json"
           },
           {
@@ -468,7 +468,7 @@
           {
             "key": "data",
             "type": "text",
-            "value": "{\n  \"title\": \"Playlist Demo Public\",\n  \"isPrivate\": false\n}",
+            "value": "{\n  \"title\": \"Playlist Demo Public\",\n  \"isPrivate\": false,\n  \"songIds\": []\n}",
             "contentType": "application/json"
           },
           {
@@ -497,17 +497,19 @@
       "url": "{{baseUrl}}/api/v1/playlists/{{playlistId}}?page={{page}}&size={{size}}"
     },
     {
-      "name": "Reorder complete song list",
+      "name": "Replace songs (edit mode Save)",
       "method": "PUT",
-      "url": "{{baseUrl}}/api/v1/playlists/{{playlistId}}/songs",
+      "url": "{{baseUrl}}/api/v1/playlists/{{playlistId}}",
       "body": {
-        "mode": "raw",
-        "raw": "[\n  \"{{songId}}\"\n]",
-        "options": {
-          "raw": {
-            "language": "json"
+        "mode": "formdata",
+        "formdata": [
+          {
+            "key": "data",
+            "type": "text",
+            "value": "{\n  \"title\": \"Playlist Demo Public\",\n  \"isPrivate\": false,\n  \"songIds\": [\n    \"{{songId}}\"\n  ]\n}",
+            "contentType": "application/json"
           }
-        }
+        ]
       }
     },
     {
@@ -648,9 +650,20 @@
       "url": "{{baseUrl}}/api/v1/comments/{{commentId}}"
     },
     {
-      "name": "Remove song from playlist",
-      "method": "DELETE",
-      "url": "{{baseUrl}}/api/v1/playlists/{{playlistId}}/songs/{{songId}}"
+      "name": "Remove all songs from playlist",
+      "method": "PUT",
+      "url": "{{baseUrl}}/api/v1/playlists/{{playlistId}}",
+      "body": {
+        "mode": "formdata",
+        "formdata": [
+          {
+            "key": "data",
+            "type": "text",
+            "value": "{\n  \"title\": \"Playlist Demo Public\",\n  \"isPrivate\": false,\n  \"songIds\": []\n}",
+            "contentType": "application/json"
+          }
+        ]
+      }
     },
     {
       "name": "Delete test playlist",
