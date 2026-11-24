@@ -57,11 +57,11 @@
 ### 1.4 Library, playlists, comments
 | # | Method | Path | Acc | Body | Returns | Notes |
 |---|---|---|---|---|---|---|
-| 21 | GET | `/library{?q,sort,page,size}` | U | | `PageResponse<TypedItemResponse>` | Saved releases + playlists (`type` only `RELEASE` or `PLAYLIST`) |
-| 22 | GET | `/library/releases{?q,sort,page,size}` | U | | `PageResponse<ReleaseSummaryResponse>` | |
-| 23 | GET | `/library/playlists{?q,owned,sort,page,size}` | U | | `PageResponse<PlaylistSummaryResponse>` | `owned=true`: only the caller's own |
-| 24 | GET | `/library/artists{?q,sort,page,size}` | U | | `PageResponse<ArtistSummaryResponse>` | No `ARTIST` sort |
-| 25 | GET | `/library/songs{?q,sort,page,size}` | U | | `PageResponse<SongResponse>` | |
+| 21 | GET | `/library{?page,size}` | U | | `PageResponse<TypedItemResponse>` | Saved releases + playlists (`type` only `RELEASE` or `PLAYLIST`) |
+| 22 | GET | `/library/releases{?page,size}` | U | | `PageResponse<ReleaseSummaryResponse>` | |
+| 23 | GET | `/library/playlists{?page,size}` | U | | `PageResponse<PlaylistSummaryResponse>` | |
+| 24 | GET | `/library/artists{?page,size}` | U | | `PageResponse<ArtistSummaryResponse>` | |
+| 25 | GET | `/library/songs{?page,size}` | U | | `PageResponse<SongResponse>` | |
 | 26 | PUT | `/library/{type:releases\|playlists\|artists\|songs}/{id}` | U | | 204 | Save, follow, favorite; idempotent |
 | 27 | DELETE | `/library/{type:releases\|playlists\|artists\|songs}/{id}` | U | | 204 | Idempotent; 400 for the caller's own playlist (delete it with #30) |
 | 28 | POST | `/playlists` | U | multipart `PlaylistRequest` | 201 `PlaylistResponse` | Title 1–255 chars; `songIds` 0–1000 in playlist order, no repeats (400), unknown song 404; max 200 owned (409 if full); also added to the caller's library |
@@ -74,7 +74,7 @@
 | 35 | POST | `/comments/{id}/replies` | U | `CommentRequest` | 201 `CommentResponse` | `content` ≤ 2000; parent must be top-level, else 400 |
 | 36 | DELETE | `/comments/{id}` | U author / A | | 204 | Also deletes its replies |
 
-<sub>Library: `q` 1–100 chars, optional; when present 1–100 chars, filters by title/name; `sort`: `RECENT` (default, newest first) \| `NAME` \| `ARTIST` (first artist; playlists: owner username).</sub>
+<sub>Library lists: newest first by `lastActivityAt` / `followedAt` / `favoritedAt`, then name, then ID.</sub>
 
 ## 2. Objects
 ```

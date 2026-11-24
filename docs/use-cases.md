@@ -49,11 +49,11 @@
 | | Delete a comment | #36 | Author or admin. Its replies are deleted too |
 | SearchScreen | Search all | #16 | Songs, releases, playlists, artists mixed. Best match first. Others' private playlists never show |
 | | Search one type | #17–20 | One chip per type |
-| LibraryScreen | Default list | #21 | Saved releases + playlists |
-| | Filter chips | #22–25 | Releases, Playlists, Artists (followed), Songs (favorites) |
-| | Search bar | #21–25 `q` | Filters by title or name |
-| | Sort | #21–25 `sort` | Recent (default; newest saved first, opening also counts), Name, Artist (playlists: owner; not for artists) |
+| LibraryScreen | Sync | #21–25 | The whole library is kept on the phone. On app start and pull to refresh, the app reads every page (size 100). The screen reads only the phone, also offline |
+| | Filter chips | | Releases, Playlists, Artists (followed), Songs (favorites). On the phone |
+| | Search bar | | On the phone. Filters by title or name from the 3rd character |
+| | Sort | | On the phone. Recent (default; newest saved first, opening also counts), Name, Artist (playlists: owner; not for artists), Downloaded (only downloaded, newest first) |
 | | Create playlist (+) | #28 | Max 200 per user. Added to my library. Starts empty (`songIds` = []) |
 | SongMenu (⋮ on a song) | Favorite / unfavorite | #26, #27 | In every song list (release, playlist, search, Library Songs) |
-| | Add to playlist | #23 `owned=true`, #31 | In every song list and PlayerScreen. Lists my playlists, plus "New playlist" (#28). Goes to the end. Adding it twice does nothing. Max 1000 songs |
+| | Add to playlist | #31 | In every song list and PlayerScreen. Lists my playlists (from the phone), plus "New playlist" (#28). Goes to the end. Adding it twice does nothing. Max 1000 songs |
 | HomeScreen | | | Not designed yet |

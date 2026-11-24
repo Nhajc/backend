@@ -2171,9 +2171,9 @@
           "name": "List mixed library",
           "request": {
             "method": "GET",
-            "url": "{{baseUrl}}/api/v1/library?sort=RECENT&page={{page}}&size={{size}}",
+            "url": "{{baseUrl}}/api/v1/library?page={{page}}&size={{size}}",
             "header": [],
-            "description": "GET {{baseUrl}}/api/v1/library?sort=RECENT&page={{page}}&size={{size}}. See ../api.md for the contract."
+            "description": "GET {{baseUrl}}/api/v1/library?page={{page}}&size={{size}}. See ../api.md for the contract."
           },
           "event": [
             {
@@ -2192,9 +2192,9 @@
           "name": "List saved releases",
           "request": {
             "method": "GET",
-            "url": "{{baseUrl}}/api/v1/library/releases?sort=RECENT&page={{page}}&size={{size}}",
+            "url": "{{baseUrl}}/api/v1/library/releases?page={{page}}&size={{size}}",
             "header": [],
-            "description": "GET {{baseUrl}}/api/v1/library/releases?sort=RECENT&page={{page}}&size={{size}}. See ../api.md for the contract."
+            "description": "GET {{baseUrl}}/api/v1/library/releases?page={{page}}&size={{size}}. See ../api.md for the contract."
           },
           "event": [
             {
@@ -2213,9 +2213,9 @@
           "name": "List saved playlists",
           "request": {
             "method": "GET",
-            "url": "{{baseUrl}}/api/v1/library/playlists?sort=RECENT&page={{page}}&size={{size}}",
+            "url": "{{baseUrl}}/api/v1/library/playlists?page={{page}}&size={{size}}",
             "header": [],
-            "description": "GET {{baseUrl}}/api/v1/library/playlists?sort=RECENT&page={{page}}&size={{size}}. See ../api.md for the contract."
+            "description": "GET {{baseUrl}}/api/v1/library/playlists?page={{page}}&size={{size}}. See ../api.md for the contract."
           },
           "event": [
             {
@@ -2234,9 +2234,9 @@
           "name": "List followed artists",
           "request": {
             "method": "GET",
-            "url": "{{baseUrl}}/api/v1/library/artists?sort=RECENT&page={{page}}&size={{size}}",
+            "url": "{{baseUrl}}/api/v1/library/artists?page={{page}}&size={{size}}",
             "header": [],
-            "description": "GET {{baseUrl}}/api/v1/library/artists?sort=RECENT&page={{page}}&size={{size}}. See ../api.md for the contract."
+            "description": "GET {{baseUrl}}/api/v1/library/artists?page={{page}}&size={{size}}. See ../api.md for the contract."
           },
           "event": [
             {
@@ -2255,72 +2255,9 @@
           "name": "List favorite songs",
           "request": {
             "method": "GET",
-            "url": "{{baseUrl}}/api/v1/library/songs?sort=RECENT&page={{page}}&size={{size}}",
+            "url": "{{baseUrl}}/api/v1/library/songs?page={{page}}&size={{size}}",
             "header": [],
-            "description": "GET {{baseUrl}}/api/v1/library/songs?sort=RECENT&page={{page}}&size={{size}}. See ../api.md for the contract."
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 200\",function(){pm.response.to.have.status(200);});",
-                  "pm.test(\"PageResponse: content/page/size/hasNext\",function(){const b=pm.response.json();pm.expect(b).to.have.all.keys(\"content\",\"page\",\"size\",\"hasNext\");pm.expect(b.content).to.be.an(\"array\");pm.expect(b.page).to.eql(Number(pm.variables.get(\"page\")));pm.expect(b.size).to.eql(Number(pm.variables.get(\"size\")));pm.expect(b.hasNext).to.be.a(\"boolean\");});"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "List owned playlists",
-          "request": {
-            "method": "GET",
-            "url": "{{baseUrl}}/api/v1/library/playlists?owned=true&sort=NAME&page={{page}}&size={{size}}",
-            "header": [],
-            "description": "GET {{baseUrl}}/api/v1/library/playlists?owned=true&sort=NAME&page={{page}}&size={{size}}. See ../api.md for the contract."
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 200\",function(){pm.response.to.have.status(200);});",
-                  "pm.test(\"PageResponse: content/page/size/hasNext\",function(){const b=pm.response.json();pm.expect(b).to.have.all.keys(\"content\",\"page\",\"size\",\"hasNext\");pm.expect(b.content).to.be.an(\"array\");pm.expect(b.page).to.eql(Number(pm.variables.get(\"page\")));pm.expect(b.size).to.eql(Number(pm.variables.get(\"size\")));pm.expect(b.hasNext).to.be.a(\"boolean\");});"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Filter library by name",
-          "request": {
-            "method": "GET",
-            "url": "{{baseUrl}}/api/v1/library?q={{q}}&sort=NAME&page={{page}}&size={{size}}",
-            "header": [],
-            "description": "GET {{baseUrl}}/api/v1/library?q={{q}}&sort=NAME&page={{page}}&size={{size}}. See ../api.md for the contract."
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 200\",function(){pm.response.to.have.status(200);});",
-                  "pm.test(\"PageResponse: content/page/size/hasNext\",function(){const b=pm.response.json();pm.expect(b).to.have.all.keys(\"content\",\"page\",\"size\",\"hasNext\");pm.expect(b.content).to.be.an(\"array\");pm.expect(b.page).to.eql(Number(pm.variables.get(\"page\")));pm.expect(b.size).to.eql(Number(pm.variables.get(\"size\")));pm.expect(b.hasNext).to.be.a(\"boolean\");});"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Sort library by artist or owner",
-          "request": {
-            "method": "GET",
-            "url": "{{baseUrl}}/api/v1/library?sort=ARTIST&page={{page}}&size={{size}}",
-            "header": [],
-            "description": "GET {{baseUrl}}/api/v1/library?sort=ARTIST&page={{page}}&size={{size}}. See ../api.md for the contract."
+            "description": "GET {{baseUrl}}/api/v1/library/songs?page={{page}}&size={{size}}. See ../api.md for the contract."
           },
           "event": [
             {

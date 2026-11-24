@@ -535,42 +535,27 @@
     {
       "name": "List mixed library",
       "method": "GET",
-      "url": "{{baseUrl}}/api/v1/library?sort=RECENT&page={{page}}&size={{size}}"
+      "url": "{{baseUrl}}/api/v1/library?page={{page}}&size={{size}}"
     },
     {
       "name": "List saved releases",
       "method": "GET",
-      "url": "{{baseUrl}}/api/v1/library/releases?sort=RECENT&page={{page}}&size={{size}}"
+      "url": "{{baseUrl}}/api/v1/library/releases?page={{page}}&size={{size}}"
     },
     {
       "name": "List saved playlists",
       "method": "GET",
-      "url": "{{baseUrl}}/api/v1/library/playlists?sort=RECENT&page={{page}}&size={{size}}"
+      "url": "{{baseUrl}}/api/v1/library/playlists?page={{page}}&size={{size}}"
     },
     {
       "name": "List followed artists",
       "method": "GET",
-      "url": "{{baseUrl}}/api/v1/library/artists?sort=RECENT&page={{page}}&size={{size}}"
+      "url": "{{baseUrl}}/api/v1/library/artists?page={{page}}&size={{size}}"
     },
     {
       "name": "List favorite songs",
       "method": "GET",
-      "url": "{{baseUrl}}/api/v1/library/songs?sort=RECENT&page={{page}}&size={{size}}"
-    },
-    {
-      "name": "List owned playlists",
-      "method": "GET",
-      "url": "{{baseUrl}}/api/v1/library/playlists?owned=true&sort=NAME&page={{page}}&size={{size}}"
-    },
-    {
-      "name": "Filter library by name",
-      "method": "GET",
-      "url": "{{baseUrl}}/api/v1/library?q={{q}}&sort=NAME&page={{page}}&size={{size}}"
-    },
-    {
-      "name": "Sort library by artist or owner",
-      "method": "GET",
-      "url": "{{baseUrl}}/api/v1/library?sort=ARTIST&page={{page}}&size={{size}}"
+      "url": "{{baseUrl}}/api/v1/library/songs?page={{page}}&size={{size}}"
     },
     {
       "name": "Unsave release",
