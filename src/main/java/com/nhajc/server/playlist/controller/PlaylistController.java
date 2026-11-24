@@ -44,11 +44,5 @@ public class PlaylistController {
     public void delete(@PathVariable UUID id,@AuthenticationPrincipal Jwt jwt) { playlists.delete(Actors.id(jwt),id); }
     @PutMapping("/{id}/songs/{songId}") @ResponseStatus(HttpStatus.NO_CONTENT)
     public void add(@PathVariable UUID id,@PathVariable UUID songId,@AuthenticationPrincipal Jwt jwt) { playlists.addSong(Actors.id(jwt),id,songId); }
-    @DeleteMapping("/{id}/songs/{songId}") @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void remove(@PathVariable UUID id,@PathVariable UUID songId,@AuthenticationPrincipal Jwt jwt) { playlists.removeSong(Actors.id(jwt),id,songId); }
-    @PutMapping("/{id}/songs") @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void reorder(@PathVariable UUID id,@RequestBody @NotNull @Size(max=1000) List<@NotNull UUID> songs,@AuthenticationPrincipal Jwt jwt) {
-        playlists.reorder(Actors.id(jwt),id,songs);
-    }
 }
 

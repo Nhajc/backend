@@ -72,7 +72,6 @@ public class LibraryServiceImpl implements LibraryService {
             if(p.isPresent()) {
                 if(p.get().getOwner().getId().equals(actor))
                     throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Delete your own playlist using DELETE /playlists/{id}.");
-                if(p.get().isPrivate())throw missing();
             }
         }
         switch(type) {
