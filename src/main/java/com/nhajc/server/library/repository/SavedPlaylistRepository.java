@@ -14,4 +14,8 @@ public interface SavedPlaylistRepository extends LibraryEntryRepository<SavedPla
             ON CONFLICT (user_id, playlist_id) DO NOTHING
             """, nativeQuery = true)
     void insertIfAbsent(@Param("user") UUID user, @Param("item") UUID item);
+
+    @Modifying
+    @Query("delete from SavedPlaylist e where e.id.itemId = :playlist and e.id.userId <> :owner")
+    void deleteOthers(@Param("playlist") UUID playlist, @Param("owner") UUID owner);
 }

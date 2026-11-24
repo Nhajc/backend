@@ -32,7 +32,7 @@ class PlaylistLimitsTest {
     }
     @Test void cannotCreateBeyondTheOwnedPlaylistLimit() {
         when(playlists.countByOwner_Id(actor)).thenReturn(200L);
-        assertThatThrownBy(()->service.create(actor,new PlaylistRequest("Test",true),null))
+        assertThatThrownBy(()->service.create(actor,new PlaylistRequest("Test",true,List.of()),null))
                 .isInstanceOfSatisfying(ResponseStatusException.class,e->assertThat(e.getStatusCode().value()).isEqualTo(409));
         verify(users).lock(actor);
         verify(playlists,never()).saveAndFlush(any());
@@ -49,14 +49,4 @@ class PlaylistLimitsTest {
                 .isInstanceOfSatisfying(ResponseStatusException.class,e->assertThat(e.getStatusCode().value()).isEqualTo(409));
         verify(entries,never()).save(any());
     }
-    @Test void reorderRequiresExactlyTheExistingSongSetAndRejectsDuplicates() {
-        owner();var song=mock(Song.class);when(song.getId()).thenReturn(songId);
-        var owner=playlists.findLockedById(id).orElseThrow();
-        var entry=new PlaylistSong(owner,song,0);
-        when(entries.findById_PlaylistIdOrderByPositionAsc(id)).thenReturn(List.of(entry));
-        assertThatThrownBy(()->service.reorder(actor,id,List.of())).isInstanceOf(ResponseStatusException.class);
-        assertThatThrownBy(()->service.reorder(actor,id,List.of(songId,songId))).isInstanceOf(ResponseStatusException.class);
-        assertThatCode(()->service.reorder(actor,id,List.of(songId))).doesNotThrowAnyException();
-    }
 }
-

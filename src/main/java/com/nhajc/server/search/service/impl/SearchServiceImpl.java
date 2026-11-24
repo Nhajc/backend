@@ -21,7 +21,7 @@ public class SearchServiceImpl implements SearchService {
     @Override @Transactional(readOnly=true)
     public PageResponse<?> search(UUID actor, ItemType type, String q, Pageable pageable) {
         users.require(actor);
-        return views.responses(discovery.find(actor,type,q,false,false,LibrarySort.NAME,pageable),actor,type==null);
+        return views.responses(discovery.find(actor,type,q,false,pageable),actor,type==null);
     }
 }
 

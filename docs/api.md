@@ -5,7 +5,7 @@
 - Access: **P** public · **U** user · **A** admin.
 - List paging: zero-based `page=0`, `size=20` (1–100; comments default 10). Returns `{content, page, size, hasNext}` (`page` and `size` echo the requested pagination, including empty pages); `hasNext=true` means another page exists. Negative page, size outside 1–100 → 400. A page past the end returns `{content: [], page, size, hasNext: false}`. Each list defines a stable order; genre lists use case-insensitive name then ID. Enums are UPPERCASE.
 - JSON requests: send every field. `T?` = may be `null`; in multipart, `null` = leave the part out. `PUT` replaces the whole object.
-- All multipart requests contain `data` (required, Content-Type: application/json, the request object below) and `file` (binary). The file is optional for images and required for song upload. Images: JPEG/PNG ≤ 5 MiB. 400 invalid image, 413 too large, 503 storage unavailable. On PUT, omitting `file` removes the existing image.
+- All multipart requests contain `data` (required, Content-Type: application/json, the request object below) and `file` (binary). The file is optional for images and required for song upload. Images: JPEG/PNG ≤ 5 MiB. 400 invalid image, 413 too large, 503 storage unavailable. On PUT, omitting `file` removes the avatar (#6) but keeps the playlist cover (#29).
 - Image responses: `avatarUrl` / `coverUrl` = presigned URL, used as given, or `null`. Valid 1 h; refetch the resource for a new one.
 
 ## 1. Endpoints
@@ -30,7 +30,7 @@
 |---|---|---|---|---|---|---|
 | 7 | POST | `/admin/artists` | A | multipart `ArtistRequest` | 201 `{id}` | `name` ≤ 255 |
 | 8 | POST | `/admin/genres` | A | `GenreRequest` | 201 `{id}` | `name` ≤ 100; 409 if the genre exists |
-| 9 | POST | `/admin/releases` | A | multipart `ReleaseRequest` | 201 `{id}` | `artistIds` 1–20; `genreIds` 0–20 |
+| 9 | POST | `/admin/releases` | A | multipart `ReleaseRequest` | 201 `{id}` | `artistIds` 1–20, in credit order; `genreIds` 0–20 |
 | 10 | POST | `/admin/releases/{id}/songs` | A | multipart `UploadSongRequest` | 201 `{id}` | `trackNumber` ≥ 1, 409 if taken; `title` ≤ 255; `file`: FLAC 16-bit, ≤ 48 kHz, mono/stereo, ≤ 200 MB, ≤ 7200 s; 429 when processing capacity is exceeded |
 
 - Release metadata is JSON: `artistIds` and `genreIds` are UUID arrays; `releaseDate` is an ISO date (`yyyy-MM-dd`). Omit `genreIds` or use an empty array for none.
@@ -46,7 +46,7 @@
 | 13 | GET | `/artists/{id}` | U | | `ArtistResponse` | All releases, newest release date first |
 | 14 | GET | `/genres{?page,size}` | U | | `PageResponse<GenreResponse>` | Default `page=0,size=20`; name ascending ignoring case, ID as tie-breaker |
 | 15 | GET | `/songs/{id}/audio/{quality:low\|medium\|high\|lossless}` | U | | 302 | `Location` = presigned audio URL; follow it (it supports `Range`) |
-| 16 | GET | `/search{?q,page,size}` | U | | `PageResponse<SearchItemResponse>` | All types mixed |
+| 16 | GET | `/search{?q,page,size}` | U | | `PageResponse<TypedItemResponse>` | All types mixed |
 | 17 | GET | `/search/songs{?q,page,size}` | U | | `PageResponse<SongResponse>` | |
 | 18 | GET | `/search/releases{?q,page,size}` | U | | `PageResponse<ReleaseSummaryResponse>` | |
 | 19 | GET | `/search/playlists{?q,page,size}` | U | | `PageResponse<PlaylistSummaryResponse>` | |
@@ -57,26 +57,24 @@
 ### 1.4 Library, playlists, comments
 | # | Method | Path | Acc | Body | Returns | Notes |
 |---|---|---|---|---|---|---|
-| 21 | GET | `/library{?q,sort,page,size}` | U | | `PageResponse<LibraryItemResponse>` | Saved releases + playlists |
-| 22 | GET | `/library/releases{?q,sort,page,size}` | U | | `PageResponse<ReleaseSummaryResponse>` | |
-| 23 | GET | `/library/playlists{?q,owned,sort,page,size}` | U | | `PageResponse<PlaylistSummaryResponse>` | `owned=true`: only the caller's own |
-| 24 | GET | `/library/artists{?q,sort,page,size}` | U | | `PageResponse<ArtistSummaryResponse>` | No `ARTIST` sort |
-| 25 | GET | `/library/songs{?q,sort,page,size}` | U | | `PageResponse<SongResponse>` | |
+| 21 | GET | `/library{?page,size}` | U | | `PageResponse<TypedItemResponse>` | Saved releases + playlists (`type` only `RELEASE` or `PLAYLIST`) |
+| 22 | GET | `/library/releases{?page,size}` | U | | `PageResponse<ReleaseSummaryResponse>` | |
+| 23 | GET | `/library/playlists{?page,size}` | U | | `PageResponse<PlaylistSummaryResponse>` | |
+| 24 | GET | `/library/artists{?page,size}` | U | | `PageResponse<ArtistSummaryResponse>` | |
+| 25 | GET | `/library/songs{?page,size}` | U | | `PageResponse<SongResponse>` | |
 | 26 | PUT | `/library/{type:releases\|playlists\|artists\|songs}/{id}` | U | | 204 | Save, follow, favorite; idempotent |
 | 27 | DELETE | `/library/{type:releases\|playlists\|artists\|songs}/{id}` | U | | 204 | Idempotent; 400 for the caller's own playlist (delete it with #30) |
-| 28 | POST | `/playlists` | U | multipart `PlaylistRequest` | 201 `PlaylistResponse` | Title 1–255 chars; max 200 owned (409 if full); also added to the caller's library |
-| 29 | PUT | `/playlists/{id}` | U owner | multipart `PlaylistRequest` | 204 | Omitted `file` removes the current cover |
+| 28 | POST | `/playlists` | U | multipart `PlaylistRequest` | 201 `PlaylistResponse` | Title 1–255 chars; `songIds` 0–1000 in playlist order, no repeats (400), unknown song 404; max 200 owned (409 if full); also added to the caller's library |
+| 29 | PUT | `/playlists/{id}` | U owner | multipart `PlaylistRequest` | 204 | Replaces title, privacy and songs (`songIds` as in #28). Omitted `file` keeps the current cover; a cover can be replaced, not removed. Making it private removes it from other users' libraries |
 | 30 | DELETE | `/playlists/{id}` | U owner | | 204 | |
 | 31 | PUT | `/playlists/{id}/songs/{songId}` | U owner | | 204 | Appended; idempotent; max 1000 (409 if full) |
-| 32 | DELETE | `/playlists/{id}/songs/{songId}` | U owner | | 204 | |
-| 33 | PUT | `/playlists/{id}/songs` | U owner | `UUID[]` | 204 | Reorder; must be exactly the playlist's songs, else 400 |
-| 34 | GET | `/songs/{id}/comments{?page,size}` | U | | `PageResponse<CommentResponse>` | `size` default 10; top-level, newest first |
-| 35 | GET | `/comments/{id}/replies{?page,size}` | U | | `PageResponse<CommentResponse>` | `size` default 10; oldest first |
-| 36 | POST | `/songs/{id}/comments` | U | `CommentRequest` | 201 `CommentResponse` | `content` ≤ 2000 |
-| 37 | POST | `/comments/{id}/replies` | U | `CommentRequest` | 201 `CommentResponse` | `content` ≤ 2000; parent must be top-level, else 400 |
-| 38 | DELETE | `/comments/{id}` | U author / A | | 204 | Also deletes its replies |
+| 32 | GET | `/songs/{id}/comments{?page,size}` | U | | `PageResponse<CommentResponse>` | `size` default 10; top-level, newest first |
+| 33 | GET | `/comments/{id}/replies{?page,size}` | U | | `PageResponse<CommentResponse>` | `size` default 10; oldest first |
+| 34 | POST | `/songs/{id}/comments` | U | `CommentRequest` | 201 `CommentResponse` | `content` ≤ 2000 |
+| 35 | POST | `/comments/{id}/replies` | U | `CommentRequest` | 201 `CommentResponse` | `content` ≤ 2000; parent must be top-level, else 400 |
+| 36 | DELETE | `/comments/{id}` | U author / A | | 204 | Also deletes its replies |
 
-<sub>Library: `q` 1–100 chars, optional; when present 1–100 chars, filters by title/name; `sort`: `RECENT` (default, newest first) \| `NAME` \| `ARTIST` (first artist; playlists: owner username).</sub>
+<sub>Library lists: newest first by `lastActivityAt` / `followedAt` / `favoritedAt`, then name, then ID.</sub>
 
 ## 2. Objects
 ```
@@ -84,7 +82,7 @@ RegisterRequest         { username, email, password }
 LoginRequest            { usernameOrEmail, password }
 RefreshTokenRequest     { refreshToken }
 UpdateProfileRequest    {}
-PlaylistRequest         { title, isPrivate: boolean }
+PlaylistRequest         { title, isPrivate: boolean, songIds: UUID[] }
 CommentRequest          { content }
 ArtistRequest           { name }
 GenreRequest            { name }
@@ -111,8 +109,9 @@ PlaylistResponse        { ...PlaylistSummaryResponse, songs: SongResponse[] }
 
 CommentResponse         { id, content, commentedAt, user: UserSummaryResponse, replyCount }
 
-SearchItemResponse      { type: "SONG", ...SongResponse } | { type: "RELEASE", ...ReleaseSummaryResponse } | { type: "PLAYLIST", ...PlaylistSummaryResponse } | { type: "ARTIST", ...ArtistSummaryResponse }
-LibraryItemResponse     { type: "RELEASE", ...ReleaseSummaryResponse } | { type: "PLAYLIST", ...PlaylistSummaryResponse }
+TypedItemResponse       { type: "SONG", ...SongResponse } | { type: "RELEASE", ...ReleaseSummaryResponse } | { type: "PLAYLIST", ...PlaylistSummaryResponse } | { type: "ARTIST", ...ArtistSummaryResponse }
 ```
+
+Every `artists` list is in credit order (the order of #9 `artistIds`).
 
 Library timestamps are UTC instants: `null` means not saved, followed or favorited. Opening a saved release or playlist updates `lastActivityAt`.

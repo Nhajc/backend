@@ -8,7 +8,5 @@ public interface PlaylistService {
     void update(UUID actor, UUID id, PlaylistRequest request, MultipartFile file);
     void delete(UUID actor, UUID id);
     void addSong(UUID actor, UUID id, UUID song);
-    void removeSong(UUID actor, UUID id, UUID song);
-    void reorder(UUID actor, UUID id, List<UUID> songIds);
 }
 

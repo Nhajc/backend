@@ -5,6 +5,7 @@ import com.nhajc.server.playlist.service.PlaylistService;
 import com.nhajc.server.playlist.dto.*;
 import com.nhajc.server.playlist.entity.*;
 import com.nhajc.server.playlist.repository.*;
+import com.nhajc.server.song.entity.Song;
 import com.nhajc.server.song.repository.SongRepository;
 import com.nhajc.server.library.entity.*;
 import com.nhajc.server.library.repository.SavedPlaylistRepository;
@@ -59,8 +60,9 @@ public class PlaylistServiceImpl implements PlaylistService {
     @Override
     public PlaylistResponse create(UUID actor, PlaylistRequest request, MultipartFile file) {
         users.require(actor);
+        requireUnique(request.songIds());
         UUID id = UUID.randomUUID();
-        String key = images.upload("playlists/" + id + "/cover", images.fromMultipart(file));
+        String key = images.upload("covers/playlists/" + id + "/cover", images.fromMultipart(file));
         return transaction.execute(status -> {
             var owner = users.lock(actor);
             if (playlists.countByOwner_Id(actor) >= 200) {
@@ -70,6 +72,7 @@ public class PlaylistServiceImpl implements PlaylistService {
             playlist.setCoverObjectKey(key);
             playlists.saveAndFlush(playlist);
             saved.saveAndFlush(new SavedPlaylist(new LibraryId(actor, id)));
+            replaceSongs(playlist, request.songIds());
             cleanup.completeUpload(key);
             return response(actor, playlist);
         });
@@ -78,13 +81,19 @@ public class PlaylistServiceImpl implements PlaylistService {
     @Override
     public void update(UUID actor, UUID id, PlaylistRequest request, MultipartFile file) {
         users.require(actor);
-        String key = images.upload("playlists/" + id + "/cover", images.fromMultipart(file));
+        requireUnique(request.songIds());
+        transaction.executeWithoutResult(status -> requireOwner(actor, playlists.findById(id)));
+        String key = images.upload("covers/playlists/" + id + "/cover", images.fromMultipart(file));
         transaction.executeWithoutResult(status -> {
             var playlist = owned(actor, id);
-            cleanup.enqueue(playlist.getCoverObjectKey());
             playlist.update(request.title(), request.isPrivate());
-            playlist.setCoverObjectKey(key);
-            cleanup.completeUpload(key);
+            if (request.isPrivate()) saved.deleteOthers(id, actor);
+            replaceSongs(playlist, request.songIds());
+            if (key != null) {
+                cleanup.enqueue(playlist.getCoverObjectKey());
+                playlist.setCoverObjectKey(key);
+                cleanup.completeUpload(key);
+            }
         });
     }
 
@@ -110,43 +119,31 @@ public class PlaylistServiceImpl implements PlaylistService {
         entries.save(new PlaylistSong(playlist, song, entries.lastPosition(id) + 1));
     }
 
-    @Override
-    @Transactional
-    public void removeSong(UUID actor, UUID id, UUID songId) {
-        owned(actor, id);
-        var items = new ArrayList<>(entries.findById_PlaylistIdOrderByPositionAsc(id));
-        var removed = items.stream().filter(item -> item.getId().getSongId().equals(songId)).findFirst();
-        if (removed.isEmpty()) return;
-        entries.delete(removed.get());
-        entries.flush();
-        items.remove(removed.get());
-        for (int position = 0; position < items.size(); position++) {
-            items.get(position).setPosition(position);
+    private void replaceSongs(Playlist playlist, List<UUID> songIds) {
+        var byId = new HashMap<UUID, Song>();
+        songs.findAllById(songIds).forEach(song -> byId.put(song.getId(), song));
+        if (byId.size() != songIds.size()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Song not found.");
+        }
+        entries.deleteByPlaylist(playlist.getId());
+        for (int position = 0; position < songIds.size(); position++) {
+            entries.save(new PlaylistSong(playlist, byId.get(songIds.get(position)), position));
         }
     }
 
-    @Override
-    @Transactional
-    public void reorder(UUID actor, UUID id, List<UUID> songIds) {
-        owned(actor, id);
-        if (songIds == null || songIds.size() > 1000 || songIds.stream().anyMatch(Objects::isNull)
-                || new HashSet<>(songIds).size() != songIds.size()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Provide each song ID exactly once.");
-        }
-        var existing = entries.findById_PlaylistIdOrderByPositionAsc(id);
-        var byId = new HashMap<UUID, PlaylistSong>();
-        existing.forEach(entry -> byId.put(entry.getId().getSongId(), entry));
-        if (!byId.keySet().equals(new HashSet<>(songIds))) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Reorder must contain exactly the playlist's songs.");
-        }
-        for (int position = 0; position < songIds.size(); position++) {
-            byId.get(songIds.get(position)).setPosition(position);
+    private static void requireUnique(List<UUID> songIds) {
+        if (new HashSet<>(songIds).size() != songIds.size()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Song IDs must not be repeated.");
         }
     }
 
     private Playlist owned(UUID actor, UUID id) {
         users.require(actor);
-        var playlist = playlists.findLockedById(id).orElseThrow(PlaylistServiceImpl::missing);
+        return requireOwner(actor, playlists.findLockedById(id));
+    }
+
+    private static Playlist requireOwner(UUID actor, Optional<Playlist> found) {
+        var playlist = found.orElseThrow(PlaylistServiceImpl::missing);
         if (!playlist.getOwner().getId().equals(actor)) {
             if (playlist.isPrivate()) throw missing();
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only the playlist owner can modify it.");

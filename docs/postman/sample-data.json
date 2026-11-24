@@ -445,7 +445,7 @@
           {
             "key": "data",
             "type": "text",
-            "value": "{\n  \"title\": \"Playlist Demo Postman\",\n  \"isPrivate\": true\n}",
+            "value": "{\n  \"title\": \"Playlist Demo Postman\",\n  \"isPrivate\": true,\n  \"songIds\": []\n}",
             "contentType": "application/json"
           },
           {
@@ -468,7 +468,7 @@
           {
             "key": "data",
             "type": "text",
-            "value": "{\n  \"title\": \"Playlist Demo Public\",\n  \"isPrivate\": false\n}",
+            "value": "{\n  \"title\": \"Playlist Demo Public\",\n  \"isPrivate\": false,\n  \"songIds\": []\n}",
             "contentType": "application/json"
           },
           {
@@ -497,17 +497,19 @@
       "url": "{{baseUrl}}/api/v1/playlists/{{playlistId}}?page={{page}}&size={{size}}"
     },
     {
-      "name": "Reorder complete song list",
+      "name": "Replace songs (edit mode Save)",
       "method": "PUT",
-      "url": "{{baseUrl}}/api/v1/playlists/{{playlistId}}/songs",
+      "url": "{{baseUrl}}/api/v1/playlists/{{playlistId}}",
       "body": {
-        "mode": "raw",
-        "raw": "[\n  \"{{songId}}\"\n]",
-        "options": {
-          "raw": {
-            "language": "json"
+        "mode": "formdata",
+        "formdata": [
+          {
+            "key": "data",
+            "type": "text",
+            "value": "{\n  \"title\": \"Playlist Demo Public\",\n  \"isPrivate\": false,\n  \"songIds\": [\n    \"{{songId}}\"\n  ]\n}",
+            "contentType": "application/json"
           }
-        }
+        ]
       }
     },
     {
@@ -533,42 +535,27 @@
     {
       "name": "List mixed library",
       "method": "GET",
-      "url": "{{baseUrl}}/api/v1/library?sort=RECENT&page={{page}}&size={{size}}"
+      "url": "{{baseUrl}}/api/v1/library?page={{page}}&size={{size}}"
     },
     {
       "name": "List saved releases",
       "method": "GET",
-      "url": "{{baseUrl}}/api/v1/library/releases?sort=RECENT&page={{page}}&size={{size}}"
+      "url": "{{baseUrl}}/api/v1/library/releases?page={{page}}&size={{size}}"
     },
     {
       "name": "List saved playlists",
       "method": "GET",
-      "url": "{{baseUrl}}/api/v1/library/playlists?sort=RECENT&page={{page}}&size={{size}}"
+      "url": "{{baseUrl}}/api/v1/library/playlists?page={{page}}&size={{size}}"
     },
     {
       "name": "List followed artists",
       "method": "GET",
-      "url": "{{baseUrl}}/api/v1/library/artists?sort=RECENT&page={{page}}&size={{size}}"
+      "url": "{{baseUrl}}/api/v1/library/artists?page={{page}}&size={{size}}"
     },
     {
       "name": "List favorite songs",
       "method": "GET",
-      "url": "{{baseUrl}}/api/v1/library/songs?sort=RECENT&page={{page}}&size={{size}}"
-    },
-    {
-      "name": "List owned playlists",
-      "method": "GET",
-      "url": "{{baseUrl}}/api/v1/library/playlists?owned=true&sort=NAME&page={{page}}&size={{size}}"
-    },
-    {
-      "name": "Filter library by name",
-      "method": "GET",
-      "url": "{{baseUrl}}/api/v1/library?q={{q}}&sort=NAME&page={{page}}&size={{size}}"
-    },
-    {
-      "name": "Sort library by artist or owner",
-      "method": "GET",
-      "url": "{{baseUrl}}/api/v1/library?sort=ARTIST&page={{page}}&size={{size}}"
+      "url": "{{baseUrl}}/api/v1/library/songs?page={{page}}&size={{size}}"
     },
     {
       "name": "Unsave release",
@@ -648,9 +635,20 @@
       "url": "{{baseUrl}}/api/v1/comments/{{commentId}}"
     },
     {
-      "name": "Remove song from playlist",
-      "method": "DELETE",
-      "url": "{{baseUrl}}/api/v1/playlists/{{playlistId}}/songs/{{songId}}"
+      "name": "Remove all songs from playlist",
+      "method": "PUT",
+      "url": "{{baseUrl}}/api/v1/playlists/{{playlistId}}",
+      "body": {
+        "mode": "formdata",
+        "formdata": [
+          {
+            "key": "data",
+            "type": "text",
+            "value": "{\n  \"title\": \"Playlist Demo Public\",\n  \"isPrivate\": false,\n  \"songIds\": []\n}",
+            "contentType": "application/json"
+          }
+        ]
+      }
     },
     {
       "name": "Delete test playlist",

@@ -1,10 +1,11 @@
 package com.nhajc.server.release;
-import com.nhajc.server.release.service.impl.ReleaseReadServiceImpl;
+import com.nhajc.server.release.service.impl.ReleaseServiceImpl;
 import com.nhajc.server.release.repository.ReleaseRepository;
 import com.nhajc.server.song.entity.Song;
 import com.nhajc.server.song.repository.SongRepository;
 import com.nhajc.server.song.dto.*;
 import com.nhajc.server.library.repository.SavedReleaseRepository;
+import com.nhajc.server.common.RecordingTransactions;
 import com.nhajc.server.common.service.*;
 import org.junit.jupiter.api.Test;
 import java.util.*;
@@ -24,7 +25,7 @@ class ReleaseFullSongsTest {
         when(songs.findByRelease_IdOrderByTrackNumberAscIdAsc(id)).thenReturn(values);
         when(views.songs(values.stream().map(Song::getId).toList(),actor)).thenReturn(mapped);
         when(views.releases(List.of(id),actor)).thenReturn(new HashMap<>());
-        var response=new ReleaseReadServiceImpl(releases,songs,users,views,saved).get(actor,id);
+        var response=new ReleaseServiceImpl(releases,null,null,null,null,new RecordingTransactions(),songs,users,views,saved).get(actor,id);
         assertThat(response.songs()).hasSize(125);
         assertThat(response.songs().getLast().trackNumber()).isEqualTo(125);
         verify(users,never()).lock(actor);

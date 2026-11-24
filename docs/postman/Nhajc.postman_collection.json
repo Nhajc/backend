@@ -1835,7 +1835,7 @@
                 {
                   "key": "data",
                   "type": "text",
-                  "value": "{\n  \"title\": \"Playlist Demo Postman\",\n  \"isPrivate\": true\n}",
+                  "value": "{\n  \"title\": \"Playlist Demo Postman\",\n  \"isPrivate\": true,\n  \"songIds\": []\n}",
                   "contentType": "application/json"
                 },
                 {
@@ -1883,7 +1883,7 @@
                 {
                   "key": "data",
                   "type": "text",
-                  "value": "{\n  \"title\": \"Playlist Demo Public\",\n  \"isPrivate\": false\n}",
+                  "value": "{\n  \"title\": \"Playlist Demo Public\",\n  \"isPrivate\": false,\n  \"songIds\": []\n}",
                   "contentType": "application/json"
                 },
                 {
@@ -2007,26 +2007,23 @@
           ]
         },
         {
-          "name": "Reorder complete song list",
+          "name": "Replace songs (edit mode Save)",
           "request": {
             "method": "PUT",
-            "url": "{{baseUrl}}/api/v1/playlists/{{playlistId}}/songs",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
+            "url": "{{baseUrl}}/api/v1/playlists/{{playlistId}}",
+            "header": [],
             "body": {
-              "mode": "raw",
-              "raw": "[\n  \"{{songId}}\"\n]",
-              "options": {
-                "raw": {
-                  "language": "json"
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "data",
+                  "type": "text",
+                  "value": "{\n  \"title\": \"Playlist Demo Public\",\n  \"isPrivate\": false,\n  \"songIds\": [\n    \"{{songId}}\"\n  ]\n}",
+                  "contentType": "application/json"
                 }
-              }
+              ]
             },
-            "description": "PUT {{baseUrl}}/api/v1/playlists/{{playlistId}}/songs. See ../api.md for the contract."
+            "description": "PUT {{baseUrl}}/api/v1/playlists/{{playlistId}}. See ../api.md for the contract."
           },
           "event": [
             {
@@ -2034,9 +2031,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "[\"playlistId\",\"songId\"].forEach(key=>{if(!pm.variables.get(key))throw new Error(\"Set required environment variable: \"+key+\" in the selected environment.\");});",
-                  "function resolve(v){if(typeof v===\"string\")return pm.variables.replaceIn(v);if(Array.isArray(v))return v.map(resolve);if(v&&typeof v===\"object\")Object.keys(v).forEach(k=>v[k]=resolve(v[k]));return v;}",
-                  "pm.request.body.update(JSON.stringify(resolve(JSON.parse(pm.request.body.raw))));"
+                  "{const part=pm.request.body.formdata.find(x=>x.key===\"data\");const payload=JSON.parse(part.value);function resolveData(v){if(typeof v===\"string\")return pm.variables.replaceIn(v);if(Array.isArray(v))return v.map(resolveData);if(v&&typeof v===\"object\")Object.keys(v).forEach(k=>v[k]=resolveData(v[k]));return v;}resolveData(payload);if(\"trackNumber\" in payload)payload.trackNumber=Number(payload.trackNumber);if(Array.isArray(payload.genreIds))payload.genreIds=payload.genreIds.filter(x=>x.trim());part.value=JSON.stringify(payload);}"
                 ]
               }
             },
@@ -2176,9 +2171,9 @@
           "name": "List mixed library",
           "request": {
             "method": "GET",
-            "url": "{{baseUrl}}/api/v1/library?sort=RECENT&page={{page}}&size={{size}}",
+            "url": "{{baseUrl}}/api/v1/library?page={{page}}&size={{size}}",
             "header": [],
-            "description": "GET {{baseUrl}}/api/v1/library?sort=RECENT&page={{page}}&size={{size}}. See ../api.md for the contract."
+            "description": "GET {{baseUrl}}/api/v1/library?page={{page}}&size={{size}}. See ../api.md for the contract."
           },
           "event": [
             {
@@ -2197,9 +2192,9 @@
           "name": "List saved releases",
           "request": {
             "method": "GET",
-            "url": "{{baseUrl}}/api/v1/library/releases?sort=RECENT&page={{page}}&size={{size}}",
+            "url": "{{baseUrl}}/api/v1/library/releases?page={{page}}&size={{size}}",
             "header": [],
-            "description": "GET {{baseUrl}}/api/v1/library/releases?sort=RECENT&page={{page}}&size={{size}}. See ../api.md for the contract."
+            "description": "GET {{baseUrl}}/api/v1/library/releases?page={{page}}&size={{size}}. See ../api.md for the contract."
           },
           "event": [
             {
@@ -2218,9 +2213,9 @@
           "name": "List saved playlists",
           "request": {
             "method": "GET",
-            "url": "{{baseUrl}}/api/v1/library/playlists?sort=RECENT&page={{page}}&size={{size}}",
+            "url": "{{baseUrl}}/api/v1/library/playlists?page={{page}}&size={{size}}",
             "header": [],
-            "description": "GET {{baseUrl}}/api/v1/library/playlists?sort=RECENT&page={{page}}&size={{size}}. See ../api.md for the contract."
+            "description": "GET {{baseUrl}}/api/v1/library/playlists?page={{page}}&size={{size}}. See ../api.md for the contract."
           },
           "event": [
             {
@@ -2239,9 +2234,9 @@
           "name": "List followed artists",
           "request": {
             "method": "GET",
-            "url": "{{baseUrl}}/api/v1/library/artists?sort=RECENT&page={{page}}&size={{size}}",
+            "url": "{{baseUrl}}/api/v1/library/artists?page={{page}}&size={{size}}",
             "header": [],
-            "description": "GET {{baseUrl}}/api/v1/library/artists?sort=RECENT&page={{page}}&size={{size}}. See ../api.md for the contract."
+            "description": "GET {{baseUrl}}/api/v1/library/artists?page={{page}}&size={{size}}. See ../api.md for the contract."
           },
           "event": [
             {
@@ -2260,72 +2255,9 @@
           "name": "List favorite songs",
           "request": {
             "method": "GET",
-            "url": "{{baseUrl}}/api/v1/library/songs?sort=RECENT&page={{page}}&size={{size}}",
+            "url": "{{baseUrl}}/api/v1/library/songs?page={{page}}&size={{size}}",
             "header": [],
-            "description": "GET {{baseUrl}}/api/v1/library/songs?sort=RECENT&page={{page}}&size={{size}}. See ../api.md for the contract."
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 200\",function(){pm.response.to.have.status(200);});",
-                  "pm.test(\"PageResponse: content/page/size/hasNext\",function(){const b=pm.response.json();pm.expect(b).to.have.all.keys(\"content\",\"page\",\"size\",\"hasNext\");pm.expect(b.content).to.be.an(\"array\");pm.expect(b.page).to.eql(Number(pm.variables.get(\"page\")));pm.expect(b.size).to.eql(Number(pm.variables.get(\"size\")));pm.expect(b.hasNext).to.be.a(\"boolean\");});"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "List owned playlists",
-          "request": {
-            "method": "GET",
-            "url": "{{baseUrl}}/api/v1/library/playlists?owned=true&sort=NAME&page={{page}}&size={{size}}",
-            "header": [],
-            "description": "GET {{baseUrl}}/api/v1/library/playlists?owned=true&sort=NAME&page={{page}}&size={{size}}. See ../api.md for the contract."
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 200\",function(){pm.response.to.have.status(200);});",
-                  "pm.test(\"PageResponse: content/page/size/hasNext\",function(){const b=pm.response.json();pm.expect(b).to.have.all.keys(\"content\",\"page\",\"size\",\"hasNext\");pm.expect(b.content).to.be.an(\"array\");pm.expect(b.page).to.eql(Number(pm.variables.get(\"page\")));pm.expect(b.size).to.eql(Number(pm.variables.get(\"size\")));pm.expect(b.hasNext).to.be.a(\"boolean\");});"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Filter library by name",
-          "request": {
-            "method": "GET",
-            "url": "{{baseUrl}}/api/v1/library?q={{q}}&sort=NAME&page={{page}}&size={{size}}",
-            "header": [],
-            "description": "GET {{baseUrl}}/api/v1/library?q={{q}}&sort=NAME&page={{page}}&size={{size}}. See ../api.md for the contract."
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 200\",function(){pm.response.to.have.status(200);});",
-                  "pm.test(\"PageResponse: content/page/size/hasNext\",function(){const b=pm.response.json();pm.expect(b).to.have.all.keys(\"content\",\"page\",\"size\",\"hasNext\");pm.expect(b.content).to.be.an(\"array\");pm.expect(b.page).to.eql(Number(pm.variables.get(\"page\")));pm.expect(b.size).to.eql(Number(pm.variables.get(\"size\")));pm.expect(b.hasNext).to.be.a(\"boolean\");});"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Sort library by artist or owner",
-          "request": {
-            "method": "GET",
-            "url": "{{baseUrl}}/api/v1/library?sort=ARTIST&page={{page}}&size={{size}}",
-            "header": [],
-            "description": "GET {{baseUrl}}/api/v1/library?sort=ARTIST&page={{page}}&size={{size}}. See ../api.md for the contract."
+            "description": "GET {{baseUrl}}/api/v1/library/songs?page={{page}}&size={{size}}. See ../api.md for the contract."
           },
           "event": [
             {
@@ -2693,12 +2625,23 @@
       "name": "Playlist cleanup",
       "item": [
         {
-          "name": "Remove song from playlist",
+          "name": "Remove all songs from playlist",
           "request": {
-            "method": "DELETE",
-            "url": "{{baseUrl}}/api/v1/playlists/{{playlistId}}/songs/{{songId}}",
+            "method": "PUT",
+            "url": "{{baseUrl}}/api/v1/playlists/{{playlistId}}",
             "header": [],
-            "description": "DELETE {{baseUrl}}/api/v1/playlists/{{playlistId}}/songs/{{songId}}. See ../api.md for the contract."
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "data",
+                  "type": "text",
+                  "value": "{\n  \"title\": \"Playlist Demo Public\",\n  \"isPrivate\": false,\n  \"songIds\": []\n}",
+                  "contentType": "application/json"
+                }
+              ]
+            },
+            "description": "PUT {{baseUrl}}/api/v1/playlists/{{playlistId}}. See ../api.md for the contract."
           },
           "event": [
             {
@@ -2706,7 +2649,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "[\"playlistId\",\"songId\"].forEach(key=>{if(!pm.variables.get(key))throw new Error(\"Set required environment variable: \"+key+\" in the selected environment.\");});"
+                  "{const part=pm.request.body.formdata.find(x=>x.key===\"data\");const payload=JSON.parse(part.value);function resolveData(v){if(typeof v===\"string\")return pm.variables.replaceIn(v);if(Array.isArray(v))return v.map(resolveData);if(v&&typeof v===\"object\")Object.keys(v).forEach(k=>v[k]=resolveData(v[k]));return v;}resolveData(payload);if(\"trackNumber\" in payload)payload.trackNumber=Number(payload.trackNumber);if(Array.isArray(payload.genreIds))payload.genreIds=payload.genreIds.filter(x=>x.trim());part.value=JSON.stringify(payload);}"
                 ]
               }
             },

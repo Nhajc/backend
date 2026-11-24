@@ -4,7 +4,7 @@
 - `#n` = endpoint number in [api.md](api.md).
 - Bottom bar: Home, Search, Library, Admin (admins only).
 - Top left: my avatar (#5), or the default Material 3 account icon if none → SettingsScreen.
-- Multipart requests use `data` (application/json metadata) and `file` (image or audio). Image files are optional; the FLAC file is required. On PUT, omitting the image removes it.
+- Multipart requests use `data` (application/json metadata) and `file` (image or audio). Image files are optional; the FLAC file is required. On PUT, omitting the image removes the avatar (#6) but keeps the playlist cover (#29).
 - Search, library, genres and comments use page/size and return content/page/size/hasNext. Release songs, playlist songs and artist releases are complete arrays, ready for play, shuffle and reorder.
 - Images load from `avatarUrl` / `coverUrl`. Null → a default icon. After 1 h the URL expires: load the data again.
 
@@ -29,30 +29,31 @@
 | AdminScreen | Menu | | Create artist, Create genre, Create release. Each opens its own screen |
 | CreateArtistScreen | Create artist | #7 | Multipart data: JSON {name}; file: optional avatar |
 | CreateGenreScreen | Create genre | #8 | Name must be new |
-| CreateReleaseScreen | Create release | #9 | 1–20 artists, 0–20 genres (from #14, paged: read content, load next page while hasNext), optional cover in file; data contains JSON metadata with artistIds/genreIds arrays |
+| CreateReleaseScreen | Create release | #9 | 1–20 artists (the app shows them in this order everywhere), 0–20 genres (from #14, paged: read content, load next page while hasNext), optional cover in file; data contains JSON metadata with artistIds/genreIds arrays |
 | | Upload its songs | #10 | One row per song: track number, title, FLAC. Sent after #9, max 2 at a time, each row shows waiting / uploading / done / failed (retry). FLAC 16-bit, ≤ 48 kHz, mono/stereo, ≤ 200 MB, ≤ 2 h. Track number once per release. Users see a song after encoding. No cover yet → the FLAC picture becomes it |
 | ReleaseScreen | Open | #11 | Cover, type, date, artists, all songs. Song rows show the track number, not the cover |
 | | Save / unsave | #26, #27 | |
 | PlaylistScreen | Open | #12 | Dedicated optional cover. Private: only the owner. Others get 404 |
 | | Save / unsave | #26, #27 | Other users' public playlists only |
-| | Edit mode | #29, #32, #33 | Owner only. Rename, change or remove cover, make public/private, remove songs, drag to reorder |
+| | Edit mode | #29 | Owner only. Rename, change cover (once set, it can't be removed), make public/private, remove songs, drag to reorder. One Save sends everything, with the full song list in order. Making it private removes it from other users' libraries |
+| | Save a copy | #28 | When the owner deleted a playlist I saved: make my own playlist with the same title and songs from the app's cache, in one call |
 | | Delete | #30 | Owner only. Also the owner's "remove from library" |
 | ArtistScreen | Open | #13 | Name, avatar, all releases (newest release date first) |
 | | Follow / unfollow | #26, #27 | |
 | PlayerScreen | Play, seek | #15 | |
 | | Favorite / unfavorite | #26, #27 | Heart button |
 | | Lock screen cover | | The song's release cover, already in the song list |
-| | Comments (scroll down) | #34 | Newest first, 10 per page. Each shows avatar, username, reply count |
-| | Replies | #35 | Oldest first |
-| | Comment / reply | #36, #37 | Max 2000 characters. No reply to a reply |
-| | Delete a comment | #38 | Author or admin. Its replies are deleted too |
+| | Comments (scroll down) | #32 | Newest first, 10 per page. Each shows avatar, username, reply count |
+| | Replies | #33 | Oldest first |
+| | Comment / reply | #34, #35 | Max 2000 characters. No reply to a reply |
+| | Delete a comment | #36 | Author or admin. Its replies are deleted too |
 | SearchScreen | Search all | #16 | Songs, releases, playlists, artists mixed. Best match first. Others' private playlists never show |
 | | Search one type | #17–20 | One chip per type |
-| LibraryScreen | Default list | #21 | Saved releases + playlists |
-| | Filter chips | #22–25 | Releases, Playlists, Artists (followed), Songs (favorites) |
-| | Search bar | #21–25 `q` | Filters by title or name |
-| | Sort | #21–25 `sort` | Recent (default; newest saved first, opening also counts), Name, Artist (playlists: owner; not for artists) |
-| | Create playlist (+) | #28 | Max 200 per user. Added to my library |
+| LibraryScreen | Sync | #21–25 | The whole library is kept on the phone. On app start and pull to refresh, the app reads every page (size 100). The screen reads only the phone, also offline |
+| | Filter chips | | Releases, Playlists, Artists (followed), Songs (favorites). On the phone |
+| | Search bar | | On the phone. Filters by title or name from the 3rd character |
+| | Sort | | On the phone. Recent (default; newest saved first, opening also counts), Name, Artist (playlists: owner; not for artists), Downloaded (only downloaded, newest first) |
+| | Create playlist (+) | #28 | Max 200 per user. Added to my library. Starts empty (`songIds` = []) |
 | SongMenu (⋮ on a song) | Favorite / unfavorite | #26, #27 | In every song list (release, playlist, search, Library Songs) |
-| | Add to playlist | #23 `owned=true`, #31 | In every song list and PlayerScreen. Lists my playlists, plus "New playlist" (#28). Goes to the end. Adding it twice does nothing. Max 1000 songs |
+| | Add to playlist | #31 | In every song list and PlayerScreen. Lists my playlists (from the phone), plus "New playlist" (#28). Goes to the end. Adding it twice does nothing. Max 1000 songs |
 | HomeScreen | | | Not designed yet |

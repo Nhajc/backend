@@ -38,10 +38,9 @@ public class LibraryServiceImpl implements LibraryService {
         this.discovery=discovery;this.views=views;
     }
     @Override @Transactional(readOnly=true)
-    public PageResponse<?> list(UUID actor, ItemType type, String q, LibrarySort sort, boolean owned, Pageable page) {
+    public PageResponse<?> list(UUID actor, ItemType type, Pageable page) {
         users.require(actor);
-        if(owned&&type!=ItemType.PLAYLIST)throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"owned is only supported for playlists.");
-        return views.responses(discovery.find(actor,type,q,true,owned,sort,page),actor,type==null);
+        return views.responses(discovery.find(actor,type,null,true,page),actor,type==null);
     }
     @Override @Transactional
     public void save(UUID actor, ItemType type, UUID id) {
@@ -72,7 +71,6 @@ public class LibraryServiceImpl implements LibraryService {
             if(p.isPresent()) {
                 if(p.get().getOwner().getId().equals(actor))
                     throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Delete your own playlist using DELETE /playlists/{id}.");
-                if(p.get().isPrivate())throw missing();
             }
         }
         switch(type) {

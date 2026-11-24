@@ -68,12 +68,8 @@ public class MediaViews {
         return artist(artist, follows.savedIds(actor, List.of(artist.getId())));
     }
 
-    private List<ArtistSummaryResponse> artistList(Set<Artist> values, Map<UUID, Instant> followed) {
-        return values.stream()
-                .sorted(Comparator.comparing((Artist value) -> value.getName().toLowerCase(Locale.ROOT))
-                        .thenComparing(Artist::getId))
-                .map(value -> artist(value, followed))
-                .toList();
+    private List<ArtistSummaryResponse> artistList(List<Artist> values, Map<UUID, Instant> followed) {
+        return values.stream().map(value -> artist(value, followed)).toList();
     }
 
     public Map<UUID, ArtistSummaryResponse> artists(Collection<UUID> ids, UUID actor) {
