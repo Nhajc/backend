@@ -16,9 +16,6 @@ public interface SongRepository extends JpaRepository<Song, UUID> {
     java.util.List<Object[]> counts(@Param("ids") java.util.Collection<UUID> ids);
     boolean existsByRelease_IdAndTrackNumber(UUID releaseId, int trackNumber);
 
-    @Query("select coalesce(max(s.trackNumber), 0) from Song s where s.release.id = :id")
-    int maxTrackNumber(@Param("id") UUID releaseId);
-
     @Query("""
             select a.objectKey from SongAudio a where a.id.songId = :id and a.id.quality = :quality
             and (select count(b) from SongAudio b where b.id.songId = :id) = 4

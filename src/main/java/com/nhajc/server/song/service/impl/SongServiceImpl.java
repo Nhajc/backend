@@ -47,20 +47,14 @@ public class SongServiceImpl implements SongService {
 
     @Override
     public UUID upload(UUID releaseId, UploadSongRequest request, MultipartFile file) {
-        if (request.trackNumber() != null && songs.existsByRelease_IdAndTrackNumber(releaseId, request.trackNumber())) throw duplicateTrack();
+        Integer trackNumber = request.trackNumber();
+        if (trackNumber == null || trackNumber < 1) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A positive track number is required.");
+        if (songs.existsByRelease_IdAndTrackNumber(releaseId, trackNumber)) throw duplicateTrack();
         return prepare(releaseId, file, prepared -> {
             transaction.executeWithoutResult(status -> {
                 var release = releases.findByIdForUpdate(releaseId)
                         .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Release not found."));
-                int trackNumber;
-                if (request.trackNumber() == null) {
-                    int lastTrack = songs.maxTrackNumber(releaseId);
-                    if (lastTrack == Integer.MAX_VALUE) throw new ResponseStatusException(HttpStatus.CONFLICT, "No more track numbers are available in this release.");
-                    trackNumber = lastTrack + 1;
-                } else {
-                    trackNumber = request.trackNumber();
-                    if (songs.existsByRelease_IdAndTrackNumber(releaseId, trackNumber)) throw duplicateTrack();
-                }
+                if (songs.existsByRelease_IdAndTrackNumber(releaseId, trackNumber)) throw duplicateTrack();
                 songs.saveAndFlush(new Song(prepared.id(), request.title(), prepared.durationSeconds(), trackNumber, release, prepared.keys()));
                 if (prepared.coverKey() != null && releases.setCoverIfAbsent(releaseId, prepared.coverKey()) == 1) cleanup.completeUpload(prepared.coverKey());
                 prepared.keys().values().forEach(cleanup::completeUpload);

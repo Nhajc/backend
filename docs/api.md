@@ -41,13 +41,13 @@ Admin catalog lists:
 | 7 | POST | `/admin/artists` | A | multipart `ArtistRequest` | 201 `{id}` | `name` ≤ 255 |
 | 8 | POST | `/admin/genres` | A | `GenreRequest` | 201 `{id}` | `name` ≤ 100; 409 if the genre exists |
 | 9 | POST | `/admin/releases` | A | multipart `ReleaseRequest` | 201 `{id}` | `artistIds` 1–20, in credit order; `genreIds` 0–20 |
-| 10 | POST | `/admin/releases/{id}/songs` | A | multipart `UploadSongRequest` | 201 `{id}` | Omit/null `trackNumber` to append automatically; custom number ≥ 1, 409 if taken; `title` ≤ 255; `file`: FLAC 16-bit, ≤ 48 kHz, mono/stereo, ≤ 200 MB, ≤ 7200 s; 429 when processing capacity is exceeded |
+| 10 | POST | `/admin/releases/{id}/songs` | A | multipart `UploadSongRequest` | 201 `{id}` | Required client-provided `trackNumber` ≥ 1; missing/null/invalid → 400, already taken → 409; `title` ≤ 255; `file`: FLAC 16-bit, ≤ 48 kHz, mono/stereo, ≤ 200 MB, ≤ 7200 s; 429 when processing capacity is exceeded |
 
 - Release metadata is JSON: `artistIds` and `genreIds` are UUID arrays; `releaseDate` is an ISO date (`yyyy-MM-dd`). Omit `genreIds` or use an empty array for none.
 - Names/titles are stripped before validation. Genre names are unique ignoring case. Release title ≤ 255; duplicate artist/genre IDs → 400; missing referenced IDs → 404. Creation returns `IdResponse(UUID id)`, serialized as `{ "id": "..." }`.
 - Artist/release images are normalized to at most 600 px; input is limited to 5 MiB and 40 million pixels. The optional `file` supplies the artist avatar or release cover.
 - Song upload is synchronous: 201 only after all four qualities are stored. Artists are inherited from the release. A server process supports two concurrent upload/processing requests; additional requests return 429 before processing. Clients should queue remaining files and hold each slot until the HTTP response arrives. Processing unavailable → 503; unencodable AAC profile → 422. FLAC embedded JPEG/PNG becomes the release cover only if no cover exists.
-- Automatic track assignment uses the highest existing track number plus one (first track is 1). It is assigned under a release row lock when publishing the song, after processing, so concurrent automatic uploads receive distinct numbers. Custom uploads use the same lock and still return 409 for an occupied number. Uploading does not change existing track numbers; concurrent automatic uploads may finish in a different order from selection.
+- Direct song uploads require an explicit positive `trackNumber` from the client. The backend stores that exact number and checks for duplicates under a release row lock after processing; an occupied number returns 409. Missing/null/zero/negative numbers return 400 before processing. The backend does not infer an append position for this endpoint.
 - `PUT /admin/releases/{id}/songs/order` (ADMIN only) accepts JSON `{ "songIds": ["uuid", "uuid"] }` containing every current song ID in the desired order and returns 204. It assigns track numbers 1..N atomically under the same release lock as uploads. Null/duplicate IDs return 400, an incomplete/stale/foreign set returns 409, and a missing release returns 404. An empty list is valid only for an empty release. Migration V10 defers track-number uniqueness within the reorder transaction to support swaps without temporary invalid numbers.
 
 Upload-and-review flow (ADMIN only; the Android UI uses this flow instead of direct publication):
@@ -105,7 +105,7 @@ CommentRequest          { content }
 ArtistRequest           { name }
 GenreRequest            { name }
 ReleaseRequest          { title, releaseType, releaseDate, artistIds: UUID[], genreIds?: UUID[] }
-UploadSongRequest       { trackNumber?: positive integer | null, title }
+UploadSongRequest       { trackNumber: positive integer, title }
 
 AuthResponse            { accessToken, refreshToken, user: UserResponse }
 UserResponse            { id, username, email, createdAt, role: USER|ADMIN, avatarUrl: string? }
