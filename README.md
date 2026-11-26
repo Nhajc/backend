@@ -26,7 +26,7 @@ cp .env.example .env
 ### 2. Run
 
 ```sh
-docker compose up -d --build
+docker compose up --detach --build
 ```
 
 | Port | Service |
@@ -40,6 +40,6 @@ docker compose up -d --build
 ### Other commands
 
 * Shows the containers: `docker compose ps`
-* Shows the server log: `docker compose logs -f server`
+* Shows the server log: `docker compose logs --follow server`
 * Stops everything: `docker compose down`
-* Stops everything and deletes all data: `docker compose down -v`
+* Stops everything and deletes all data: `docker compose down --volumes`
