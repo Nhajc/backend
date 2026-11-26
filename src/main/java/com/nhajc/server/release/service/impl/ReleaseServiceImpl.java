@@ -1,26 +1,26 @@
 package com.nhajc.server.release.service.impl;
-import org.springframework.web.multipart.MultipartFile;
 
+import com.nhajc.server.artist.entity.Artist;
+import com.nhajc.server.artist.repository.ArtistRepository;
+import com.nhajc.server.common.service.*;
+import com.nhajc.server.genre.repository.GenreRepository;
+import com.nhajc.server.library.repository.SavedReleaseRepository;
 import com.nhajc.server.release.dto.ReleaseRequest;
+import com.nhajc.server.release.dto.ReleaseResponse;
 import com.nhajc.server.release.entity.Release;
 import com.nhajc.server.release.repository.ReleaseRepository;
 import com.nhajc.server.release.service.ReleaseService;
+import com.nhajc.server.song.repository.SongRepository;
 import com.nhajc.server.storage.ImageStorage;
 import com.nhajc.server.storage.ObjectStorageCleanup;
-import com.nhajc.server.artist.repository.ArtistRepository;
-import com.nhajc.server.genre.repository.GenreRepository;
-import com.nhajc.server.artist.entity.Artist;
-import com.nhajc.server.release.dto.ReleaseResponse;
-import com.nhajc.server.song.repository.SongRepository;
-import com.nhajc.server.library.repository.SavedReleaseRepository;
-import com.nhajc.server.common.service.*;
+import java.util.*;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
-import java.util.*;
 
 @Service
 public class ReleaseServiceImpl implements ReleaseService {
@@ -35,10 +35,17 @@ public class ReleaseServiceImpl implements ReleaseService {
     private final MediaViews views;
     private final SavedReleaseRepository saved;
 
-    public ReleaseServiceImpl(ReleaseRepository releases, ImageStorage images, ArtistRepository artists,
-                              GenreRepository genres, ObjectStorageCleanup cleanup,
-                              PlatformTransactionManager manager, SongRepository songs, UserAccess users,
-                              MediaViews views, SavedReleaseRepository saved) {
+    public ReleaseServiceImpl(
+            ReleaseRepository releases,
+            ImageStorage images,
+            ArtistRepository artists,
+            GenreRepository genres,
+            ObjectStorageCleanup cleanup,
+            PlatformTransactionManager manager,
+            SongRepository songs,
+            UserAccess users,
+            MediaViews views,
+            SavedReleaseRepository saved) {
         this.releases = releases;
         this.images = images;
         this.artists = artists;
@@ -70,19 +77,30 @@ public class ReleaseServiceImpl implements ReleaseService {
             if (releaseGenres.size() != request.genreIds().size()) {
                 throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Genre not found.");
             }
-            releases.saveAndFlush(new Release(id, request.title(), request.releaseType(),
-                    request.releaseDate(), key, releaseArtists, releaseGenres));
+            releases.saveAndFlush(
+                    new Release(
+                            id,
+                            request.title(),
+                            request.releaseType(),
+                            request.releaseDate(),
+                            key,
+                            releaseArtists,
+                            releaseGenres));
             cleanup.completeUpload(key);
         });
         return id;
     }
-    @Override @Transactional
-    public ReleaseResponse get(UUID actor,UUID id) {
+
+    @Override
+    @Transactional
+    public ReleaseResponse get(UUID actor, UUID id) {
         users.require(actor);
-        if(!releases.existsById(id))throw new ResponseStatusException(HttpStatus.NOT_FOUND,"Release not found.");
-        saved.touch(actor,id,java.time.Instant.now());
-        var values=songs.findByRelease_IdOrderByTrackNumberAscIdAsc(id);
-        var mapped=views.songs(values.stream().map(song->song.getId()).toList(),actor);
-        return new ReleaseResponse(views.releases(List.of(id),actor).get(id),values.stream().map(song->mapped.get(song.getId()).summary()).toList());
+        if (!releases.existsById(id)) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Release not found.");
+        saved.touch(actor, id, java.time.Instant.now());
+        var values = songs.findByRelease_IdOrderByTrackNumberAscIdAsc(id);
+        var mapped = views.songs(values.stream().map(song -> song.getId()).toList(), actor);
+        return new ReleaseResponse(
+                views.releases(List.of(id), actor).get(id),
+                values.stream().map(song -> mapped.get(song.getId()).summary()).toList());
     }
 }

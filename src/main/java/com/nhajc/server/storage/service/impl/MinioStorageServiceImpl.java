@@ -9,15 +9,14 @@ import io.minio.MakeBucketArgs;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
 import io.minio.RemoveObjectArgs;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.boot.context.event.ApplicationReadyEvent;
-import org.springframework.context.event.EventListener;
-import org.springframework.stereotype.Service;
-
 import java.io.ByteArrayInputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
+import org.springframework.stereotype.Service;
 
 @Service
 public class MinioStorageServiceImpl implements ObjectStorageService {
@@ -26,10 +25,11 @@ public class MinioStorageServiceImpl implements ObjectStorageService {
     private final String bucket;
     private final int urlExpirySeconds;
 
-    public MinioStorageServiceImpl(@Qualifier("minioClient") MinioClient client,
-                                  @Qualifier("minioPublicClient") MinioClient publicClient,
-                                  @Value("${MINIO_BUCKET}") String bucket,
-                                  @Value("${MINIO_URL_EXPIRY_SECONDS}") int urlExpirySeconds) {
+    public MinioStorageServiceImpl(
+            @Qualifier("minioClient") MinioClient client,
+            @Qualifier("minioPublicClient") MinioClient publicClient,
+            @Value("${MINIO_BUCKET}") String bucket,
+            @Value("${MINIO_URL_EXPIRY_SECONDS}") int urlExpirySeconds) {
         if (urlExpirySeconds < 1 || urlExpirySeconds > 604800) {
             throw new IllegalArgumentException("MINIO_URL_EXPIRY_SECONDS must be between 1 and 604800.");
         }
@@ -42,12 +42,10 @@ public class MinioStorageServiceImpl implements ObjectStorageService {
     @Override
     public void upload(String key, byte[] data, String contentType) {
         try (var input = new ByteArrayInputStream(data)) {
-            client.putObject(PutObjectArgs.builder()
-                    .bucket(bucket)
-                    .object(key)
-                    .stream(input, (long) data.length, -1L)
-                    .contentType(contentType)
-                    .build());
+            client.putObject(
+                    PutObjectArgs.builder().bucket(bucket).object(key).stream(input, (long) data.length, -1L)
+                            .contentType(contentType)
+                            .build());
         } catch (Exception exception) {
             throw new ObjectStorageException("Unable to upload object.", exception);
         }
@@ -56,8 +54,10 @@ public class MinioStorageServiceImpl implements ObjectStorageService {
     @Override
     public void upload(String key, Path file, String contentType) {
         try (var input = Files.newInputStream(file)) {
-            client.putObject(PutObjectArgs.builder().bucket(bucket).object(key)
-                    .stream(input, Files.size(file), -1L).contentType(contentType).build());
+            client.putObject(
+                    PutObjectArgs.builder().bucket(bucket).object(key).stream(input, Files.size(file), -1L)
+                            .contentType(contentType)
+                            .build());
         } catch (Exception exception) {
             throw new ObjectStorageException("Unable to upload object.", exception);
         }
@@ -66,12 +66,13 @@ public class MinioStorageServiceImpl implements ObjectStorageService {
     @Override
     public String getPresignedUrl(String key) {
         try {
-            return publicClient.getPresignedObjectUrl(GetPresignedObjectUrlArgs.builder()
-                    .method(Method.GET)
-                    .bucket(bucket)
-                    .object(key)
-                    .expiry(urlExpirySeconds)
-                    .build());
+            return publicClient.getPresignedObjectUrl(
+                    GetPresignedObjectUrlArgs.builder()
+                            .method(Method.GET)
+                            .bucket(bucket)
+                            .object(key)
+                            .expiry(urlExpirySeconds)
+                            .build());
         } catch (Exception exception) {
             throw new ObjectStorageException("Unable to create image URL.", exception);
         }
@@ -80,8 +81,7 @@ public class MinioStorageServiceImpl implements ObjectStorageService {
     @Override
     public void delete(String key) {
         try {
-            client.removeObject(RemoveObjectArgs.builder()
-                    .bucket(bucket).object(key).build());
+            client.removeObject(RemoveObjectArgs.builder().bucket(bucket).object(key).build());
         } catch (Exception exception) {
             throw new ObjectStorageException("Unable to delete object.", exception);
         }

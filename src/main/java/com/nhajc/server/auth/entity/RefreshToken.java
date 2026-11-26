@@ -1,7 +1,6 @@
 package com.nhajc.server.auth.entity;
 
 import jakarta.persistence.*;
-
 import java.time.Instant;
 import java.util.UUID;
 
@@ -27,8 +26,7 @@ public class RefreshToken {
     @Column(name = "used_at")
     private Instant usedAt;
 
-    protected RefreshToken() {
-    }
+    protected RefreshToken() {}
 
     public RefreshToken(UUID userId, UUID familyId, String tokenHash, Instant expiresAt) {
         this.userId = userId;
@@ -40,9 +38,11 @@ public class RefreshToken {
     public UUID getFamilyId() {
         return familyId;
     }
+
     public Instant getExpiresAt() {
         return expiresAt;
     }
+
     public Instant getUsedAt() {
         return usedAt;
     }

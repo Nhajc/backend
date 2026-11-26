@@ -15,8 +15,8 @@ public final class PageRequests {
 
     public static Pageable of(int page, int size) {
         if (page < 0 || size < 1 || size > MAX_SIZE) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Page must be at least 0 and size must be between 1 and 100.");
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "Page must be at least 0 and size must be between 1 and 100.");
         }
         if ((long) page * size > Integer.MAX_VALUE) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Page offset exceeds the supported range.");

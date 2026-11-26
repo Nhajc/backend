@@ -28,7 +28,7 @@ WORKDIR /workspace
 COPY .mvn/ .mvn/
 COPY mvnw pom.xml ./
 COPY src/ src/
-RUN sed -i 's/\r$//' mvnw && chmod +x mvnw && ./mvnw -DskipTests package
+RUN chmod +x mvnw && ./mvnw -DskipTests -Dspotless.apply.skip=true package
 
 FROM runtime-tools
 WORKDIR /app

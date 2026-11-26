@@ -5,7 +5,6 @@ import com.nhajc.server.auth.dto.LoginRequest;
 import com.nhajc.server.auth.dto.RefreshTokenRequest;
 import com.nhajc.server.auth.dto.RegisterRequest;
 import com.nhajc.server.auth.service.AuthService;
-
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;

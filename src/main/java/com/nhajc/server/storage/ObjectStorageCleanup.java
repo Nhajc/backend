@@ -1,18 +1,18 @@
 package com.nhajc.server.storage;
 
+import com.nhajc.server.storage.entity.StorageCleanupJob;
 import com.nhajc.server.storage.exception.ObjectStorageException;
+import com.nhajc.server.storage.repository.StorageCleanupRepository;
 import com.nhajc.server.storage.service.ObjectStorageService;
+import java.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import com.nhajc.server.storage.entity.StorageCleanupJob;
-import com.nhajc.server.storage.repository.StorageCleanupRepository;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
-import java.time.Instant;
 
 @Component
 public class ObjectStorageCleanup {
@@ -22,8 +22,10 @@ public class ObjectStorageCleanup {
     private final ObjectStorageService storage;
     private final TransactionTemplate independentTransaction;
 
-    public ObjectStorageCleanup(StorageCleanupRepository jobs, ObjectStorageService storage,
-                                PlatformTransactionManager transactionManager) {
+    public ObjectStorageCleanup(
+            StorageCleanupRepository jobs,
+            ObjectStorageService storage,
+            PlatformTransactionManager transactionManager) {
         this.jobs = jobs;
         this.storage = storage;
         this.independentTransaction = new TransactionTemplate(transactionManager);
@@ -36,8 +38,8 @@ public class ObjectStorageCleanup {
 
     public void reserveUpload(String key, java.time.Duration gracePeriod) {
         // Allow in-flight uploads to finish before considering an unreferenced object abandoned.
-        independentTransaction.executeWithoutResult(status ->
-                jobs.saveAndFlush(new StorageCleanupJob(key, Instant.now().plus(gracePeriod))));
+        independentTransaction.executeWithoutResult(
+                status -> jobs.saveAndFlush(new StorageCleanupJob(key, Instant.now().plus(gracePeriod))));
     }
 
     public void completeUpload(String key) {
@@ -55,12 +57,13 @@ public class ObjectStorageCleanup {
 
     @Scheduled(fixedDelayString = "${storage.cleanup-delay-ms:30000}")
     public void deleteUnusedObjects() {
-        var keys = independentTransaction.execute(status -> {
-            var batch = jobs.findDeletable(Instant.now(), PageRequest.of(0, 20));
-            Instant retryAfter = Instant.now().plusSeconds(60);
-            batch.forEach(job -> job.claimUntil(retryAfter));
-            return batch.stream().map(StorageCleanupJob::getObjectKey).toList();
-        });
+        var keys =
+                independentTransaction.execute(status -> {
+                    var batch = jobs.findDeletable(Instant.now(), PageRequest.of(0, 20));
+                    Instant retryAfter = Instant.now().plusSeconds(60);
+                    batch.forEach(job -> job.claimUntil(retryAfter));
+                    return batch.stream().map(StorageCleanupJob::getObjectKey).toList();
+                });
         if (keys == null) return;
         for (String key : keys) {
             try {

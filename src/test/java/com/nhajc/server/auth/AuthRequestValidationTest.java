@@ -1,19 +1,18 @@
 package com.nhajc.server.auth;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import com.nhajc.server.auth.dto.LoginRequest;
 import com.nhajc.server.auth.dto.RegisterRequest;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
 import jakarta.validation.ValidatorFactory;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
-
-import java.util.stream.Stream;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 class AuthRequestValidationTest {
     private static ValidatorFactory factory;
@@ -41,8 +40,7 @@ class AuthRequestValidationTest {
 
     @Test
     void acceptsLengthBoundaries() {
-        assertThat(validator.validate(new RegisterRequest("abc", "dai@example.com", "x".repeat(12))))
-                .isEmpty();
+        assertThat(validator.validate(new RegisterRequest("abc", "dai@example.com", "x".repeat(12)))).isEmpty();
         assertThat(validator.validate(new RegisterRequest("u".repeat(50), "dai@example.com", "x".repeat(72))))
                 .isEmpty();
     }

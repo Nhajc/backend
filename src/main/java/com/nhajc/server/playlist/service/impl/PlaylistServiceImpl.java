@@ -1,25 +1,25 @@
 package com.nhajc.server.playlist.service.impl;
-import org.springframework.web.multipart.MultipartFile;
 
-import com.nhajc.server.playlist.service.PlaylistService;
+import com.nhajc.server.common.service.*;
+import com.nhajc.server.library.entity.*;
+import com.nhajc.server.library.repository.SavedPlaylistRepository;
 import com.nhajc.server.playlist.dto.*;
 import com.nhajc.server.playlist.entity.*;
 import com.nhajc.server.playlist.repository.*;
+import com.nhajc.server.playlist.service.PlaylistService;
 import com.nhajc.server.song.entity.Song;
 import com.nhajc.server.song.repository.SongRepository;
-import com.nhajc.server.library.entity.*;
-import com.nhajc.server.library.repository.SavedPlaylistRepository;
-import com.nhajc.server.common.service.*;
 import com.nhajc.server.storage.ImageStorage;
 import com.nhajc.server.storage.ObjectStorageCleanup;
+import java.time.Instant;
+import java.util.*;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
-import org.springframework.http.HttpStatus;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
-import java.time.Instant;
-import java.util.*;
 
 @Service
 public class PlaylistServiceImpl implements PlaylistService {
@@ -33,9 +33,16 @@ public class PlaylistServiceImpl implements PlaylistService {
     private final ObjectStorageCleanup cleanup;
     private final TransactionTemplate transaction;
 
-    public PlaylistServiceImpl(PlaylistRepository playlists, PlaylistSongRepository entries, SongRepository songs,
-                               SavedPlaylistRepository saved, UserAccess users, MediaViews views,
-                               ImageStorage images, ObjectStorageCleanup cleanup, PlatformTransactionManager manager) {
+    public PlaylistServiceImpl(
+            PlaylistRepository playlists,
+            PlaylistSongRepository entries,
+            SongRepository songs,
+            SavedPlaylistRepository saved,
+            UserAccess users,
+            MediaViews views,
+            ImageStorage images,
+            ObjectStorageCleanup cleanup,
+            PlatformTransactionManager manager) {
         this.playlists = playlists;
         this.entries = entries;
         this.songs = songs;
@@ -111,8 +118,9 @@ public class PlaylistServiceImpl implements PlaylistService {
         var playlist = owned(actor, id);
         var key = new PlaylistSongId(id, songId);
         if (entries.existsById(key)) return;
-        var song = songs.findById(songId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Song not found."));
+        var song =
+                songs.findById(songId)
+                        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Song not found."));
         if (entries.countById_PlaylistId(id) >= 1000) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Playlist can contain at most 1000 songs.");
         }
@@ -155,7 +163,8 @@ public class PlaylistServiceImpl implements PlaylistService {
         var values = entries.findById_PlaylistIdOrderByPositionAsc(playlist.getId());
         var mapped = views.songs(values.stream().map(entry -> entry.getId().getSongId()).toList(), actor);
         var summary = views.playlists(List.of(playlist.getId()), actor).get(playlist.getId());
-        return new PlaylistResponse(summary, values.stream().map(entry -> mapped.get(entry.getId().getSongId())).toList());
+        return new PlaylistResponse(
+                summary, values.stream().map(entry -> mapped.get(entry.getId().getSongId())).toList());
     }
 
     private static ResponseStatusException missing() {

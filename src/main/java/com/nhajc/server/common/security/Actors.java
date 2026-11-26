@@ -1,9 +1,9 @@
 package com.nhajc.server.common.security;
 
-import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.http.HttpStatus;
-import org.springframework.web.server.ResponseStatusException;
 import java.util.UUID;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.web.server.ResponseStatusException;
 
 public final class Actors {
     private Actors() {}

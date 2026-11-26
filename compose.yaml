@@ -49,6 +49,15 @@ services:
       timeout: 5s
       retries: 20
 
+  format:
+    image: eclipse-temurin:25.0.5_8-jdk-alpine
+    working_dir: /workspace
+    volumes:
+      - .:/workspace
+      - maven-cache:/root/.m2
+    command: ./mvnw -q -Dspotless.index=/root/.m2/spotless-index spotless:apply
+
 volumes:
   postgres-data:
   minio-data:
+  maven-cache:

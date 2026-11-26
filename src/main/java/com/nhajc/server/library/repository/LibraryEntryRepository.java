@@ -2,17 +2,17 @@ package com.nhajc.server.library.repository;
 
 import com.nhajc.server.library.entity.LibraryEntry;
 import com.nhajc.server.library.entity.LibraryId;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Modifying;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.NoRepositoryBean;
-import org.springframework.data.repository.query.Param;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.NoRepositoryBean;
+import org.springframework.data.repository.query.Param;
 
 @NoRepositoryBean
 public interface LibraryEntryRepository<T extends LibraryEntry> extends JpaRepository<T, LibraryId> {
@@ -29,7 +29,8 @@ public interface LibraryEntryRepository<T extends LibraryEntry> extends JpaRepos
     }
 
     @Modifying(flushAutomatically = true)
-    @Query("""
+    @Query(
+            """
             update #{#entityName} e
             set e.activityAt = case when e.activityAt < :time then :time else e.activityAt end
             where e.id.userId = :user and e.id.itemId = :item

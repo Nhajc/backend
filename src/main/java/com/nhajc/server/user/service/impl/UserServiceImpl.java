@@ -1,5 +1,4 @@
 package com.nhajc.server.user.service.impl;
-import org.springframework.web.multipart.MultipartFile;
 
 import com.nhajc.server.common.security.Actors;
 import com.nhajc.server.common.service.UserAccess;
@@ -10,11 +9,12 @@ import com.nhajc.server.user.dto.UserResponse;
 import com.nhajc.server.user.mapper.UserResponseMapper;
 import com.nhajc.server.user.repository.UserRepository;
 import com.nhajc.server.user.service.UserService;
+import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
-import java.util.UUID;
+import org.springframework.web.multipart.MultipartFile;
 
 @Service
 public class UserServiceImpl implements UserService {
@@ -25,9 +25,13 @@ public class UserServiceImpl implements UserService {
     private final UserResponseMapper responses;
     private final TransactionTemplate transaction;
 
-    public UserServiceImpl(UserRepository users, UserAccess access, ImageStorage images,
-                           ObjectStorageCleanup cleanup, UserResponseMapper responses,
-                           PlatformTransactionManager manager) {
+    public UserServiceImpl(
+            UserRepository users,
+            UserAccess access,
+            ImageStorage images,
+            ObjectStorageCleanup cleanup,
+            UserResponseMapper responses,
+            PlatformTransactionManager manager) {
         this.users = users;
         this.access = access;
         this.images = images;

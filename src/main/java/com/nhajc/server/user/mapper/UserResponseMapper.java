@@ -14,8 +14,7 @@ public class UserResponseMapper {
     }
 
     public UserResponse from(User user) {
-        String url = user.getAvatarObjectKey() == null
-                ? null : storage.getPresignedUrl(user.getAvatarObjectKey());
+        String url = user.getAvatarObjectKey() == null ? null : storage.getPresignedUrl(user.getAvatarObjectKey());
         return UserResponse.from(user, url);
     }
 }

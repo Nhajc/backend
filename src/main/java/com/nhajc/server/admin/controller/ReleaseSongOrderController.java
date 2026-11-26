@@ -12,7 +12,9 @@ import org.springframework.web.bind.annotation.*;
 public class ReleaseSongOrderController {
     private final ReleaseSongOrderService order;
 
-    public ReleaseSongOrderController(ReleaseSongOrderService order) { this.order = order; }
+    public ReleaseSongOrderController(ReleaseSongOrderService order) {
+        this.order = order;
+    }
 
     @PutMapping("/{id}/songs/order")
     @ResponseStatus(HttpStatus.NO_CONTENT)

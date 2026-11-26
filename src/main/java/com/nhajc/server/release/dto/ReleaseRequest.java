@@ -12,5 +12,8 @@ public record ReleaseRequest(
         @NotNull LocalDate releaseDate,
         @NotNull @Size(min = 1, max = 20) List<@NotNull UUID> artistIds,
         @NotNull @Size(max = 20) List<@NotNull UUID> genreIds) {
-    public ReleaseRequest { title = title == null ? null : title.strip(); genreIds = genreIds == null ? List.of() : genreIds; }
+    public ReleaseRequest {
+        title = title == null ? null : title.strip();
+        genreIds = genreIds == null ? List.of() : genreIds;
+    }
 }

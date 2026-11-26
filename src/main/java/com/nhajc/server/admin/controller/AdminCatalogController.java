@@ -15,7 +15,9 @@ import org.springframework.web.bind.annotation.*;
 public class AdminCatalogController {
     private final AdminCatalogService catalog;
 
-    public AdminCatalogController(AdminCatalogService catalog) { this.catalog = catalog; }
+    public AdminCatalogController(AdminCatalogService catalog) {
+        this.catalog = catalog;
+    }
 
     @GetMapping("/artists")
     public PageResponse<ArtistSummaryResponse> artists(

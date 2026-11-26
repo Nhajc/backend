@@ -18,6 +18,7 @@
 
     <properties>
         <java.version>25</java.version>
+        <spotless.index>${project.build.directory}/spotless-index</spotless.index>
     </properties>
 
     <dependencies>
@@ -79,6 +80,32 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>com.diffplug.spotless</groupId>
+                <artifactId>spotless-maven-plugin</artifactId>
+                <version>3.11.0</version>
+                <configuration>
+                    <upToDateChecking>
+                        <enabled>true</enabled>
+                        <indexFile>${spotless.index}</indexFile>
+                    </upToDateChecking>
+                    <java>
+                        <googleJavaFormat>
+                            <version>2.0.0</version>
+                            <style>AOSP</style>
+                            <maxLineLength>120</maxLineLength>
+                        </googleJavaFormat>
+                    </java>
+                </configuration>
+                <executions>
+                    <execution>
+                        <phase>process-sources</phase>
+                        <goals>
+                            <goal>apply</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>

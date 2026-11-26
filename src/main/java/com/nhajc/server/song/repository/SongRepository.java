@@ -1,10 +1,10 @@
 package com.nhajc.server.song.repository;
 
 import com.nhajc.server.song.entity.Song;
-import org.springframework.data.jpa.repository.*;
-import org.springframework.data.repository.query.Param;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.data.jpa.repository.*;
+import org.springframework.data.repository.query.Param;
 
 public interface SongRepository extends JpaRepository<Song, UUID> {
     @EntityGraph(attributePaths = {"artists", "release"})
@@ -14,9 +14,11 @@ public interface SongRepository extends JpaRepository<Song, UUID> {
 
     @Query("select s.release.id, count(s) from Song s where s.release.id in :ids group by s.release.id")
     java.util.List<Object[]> counts(@Param("ids") java.util.Collection<UUID> ids);
+
     boolean existsByRelease_IdAndTrackNumber(UUID releaseId, int trackNumber);
 
-    @Query("""
+    @Query(
+            """
             select a.objectKey from SongAudio a where a.id.songId = :id and a.id.quality = :quality
             and (select count(b) from SongAudio b where b.id.songId = :id) = 4
             """)

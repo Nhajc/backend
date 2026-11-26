@@ -29,13 +29,16 @@ public class ReleaseSongOrderService {
     public void reorder(UUID releaseId, List<UUID> songIds) {
         releases.findByIdForUpdate(releaseId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Release not found."));
-        if (songIds == null || songIds.stream().anyMatch(java.util.Objects::isNull) || new HashSet<>(songIds).size() != songIds.size()) {
+        if (songIds == null
+                || songIds.stream().anyMatch(java.util.Objects::isNull)
+                || new HashSet<>(songIds).size() != songIds.size()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Song IDs must be present and unique.");
         }
         var current = songs.findByRelease_IdOrderByTrackNumberAscIdAsc(releaseId);
         var byId = current.stream().collect(Collectors.toMap(song -> song.getId(), Function.identity()));
         if (!byId.keySet().equals(new HashSet<>(songIds))) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "The release songs have changed. Refresh the release before reordering.");
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT, "The release songs have changed. Refresh the release before reordering.");
         }
         if (songIds.isEmpty()) return;
         entities.createNativeQuery("SET CONSTRAINTS songs_release_id_track_number_key DEFERRED").executeUpdate();

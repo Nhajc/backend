@@ -8,18 +8,10 @@ import com.nhajc.server.auth.entity.RefreshToken;
 import com.nhajc.server.auth.repository.RefreshTokenRepository;
 import com.nhajc.server.auth.service.AuthService;
 import com.nhajc.server.auth.service.JwtService;
+import com.nhajc.server.common.exception.DatabaseConflicts;
 import com.nhajc.server.user.entity.User;
 import com.nhajc.server.user.mapper.UserResponseMapper;
 import com.nhajc.server.user.repository.UserRepository;
-import com.nhajc.server.common.exception.DatabaseConflicts;
-
-import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.http.HttpStatus;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
-
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -29,6 +21,12 @@ import java.time.Instant;
 import java.util.Base64;
 import java.util.HexFormat;
 import java.util.UUID;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class AuthServiceImpl implements AuthService {
@@ -43,8 +41,12 @@ public class AuthServiceImpl implements AuthService {
     private final String dummyPasswordHash;
     private final SecureRandom random = new SecureRandom();
 
-    public AuthServiceImpl(UserRepository users, RefreshTokenRepository refreshTokens,
-                       PasswordEncoder passwords, JwtService jwtService, UserResponseMapper responses) {
+    public AuthServiceImpl(
+            UserRepository users,
+            RefreshTokenRepository refreshTokens,
+            PasswordEncoder passwords,
+            JwtService jwtService,
+            UserResponseMapper responses) {
         this.users = users;
         this.refreshTokens = refreshTokens;
         this.passwords = passwords;
@@ -60,13 +62,11 @@ public class AuthServiceImpl implements AuthService {
         String email = request.email().strip();
 
         if (request.password().getBytes(StandardCharsets.UTF_8).length > 72) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Password must be at most 72 UTF-8 bytes.");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Password must be at most 72 UTF-8 bytes.");
         }
 
         if (users.existsByUsernameIgnoreCase(username) || users.existsByEmailIgnoreCase(email)) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "Username or email already exists.");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Username or email already exists.");
         }
 
         User user = new User(username, email, passwords.encode(request.password()));
@@ -83,9 +83,11 @@ public class AuthServiceImpl implements AuthService {
     @Transactional
     public AuthResponse login(LoginRequest request) {
         String identifier = request.usernameOrEmail().strip();
-        User user = (identifier.contains("@")
-                ? users.findByEmailIgnoreCase(identifier)
-                : users.findByUsernameIgnoreCase(identifier)).orElse(null);
+        User user =
+                (identifier.contains("@")
+                                ? users.findByEmailIgnoreCase(identifier)
+                                : users.findByUsernameIgnoreCase(identifier))
+                        .orElse(null);
 
         boolean tooLong = request.password().getBytes(StandardCharsets.UTF_8).length > 72;
         String hash = user == null || tooLong ? dummyPasswordHash : user.getPassword();
@@ -101,14 +103,13 @@ public class AuthServiceImpl implements AuthService {
     @Transactional(noRollbackFor = ResponseStatusException.class)
     public AuthResponse refresh(RefreshTokenRequest request) {
         String hash = hash(request.refreshToken());
-        UUID userId = refreshTokens.findUserIdByTokenHash(hash)
-                .orElseThrow(() -> unauthorized("Invalid refresh token."));
+        UUID userId =
+                refreshTokens.findUserIdByTokenHash(hash).orElseThrow(() -> unauthorized("Invalid refresh token."));
 
         // Lock before reading token state so concurrent refresh requests serialize.
-        User user = users.findLockedById(userId)
-                .orElseThrow(() -> unauthorized("Invalid refresh token."));
-        RefreshToken token = refreshTokens.findByTokenHash(hash)
-                .orElseThrow(() -> unauthorized("Invalid refresh token."));
+        User user = users.findLockedById(userId).orElseThrow(() -> unauthorized("Invalid refresh token."));
+        RefreshToken token =
+                refreshTokens.findByTokenHash(hash).orElseThrow(() -> unauthorized("Invalid refresh token."));
 
         Instant now = Instant.now();
         if (token.getUsedAt() != null || !token.getExpiresAt().isAfter(now)) {
@@ -130,8 +131,7 @@ public class AuthServiceImpl implements AuthService {
             return;
         }
 
-        refreshTokens.findByTokenHash(hash)
-                .ifPresent(token -> refreshTokens.deleteFamily(token.getFamilyId()));
+        refreshTokens.findByTokenHash(hash).ifPresent(token -> refreshTokens.deleteFamily(token.getFamilyId()));
     }
 
     private AuthResponse issueTokens(User user, UUID familyId) {
@@ -139,18 +139,16 @@ public class AuthServiceImpl implements AuthService {
         random.nextBytes(bytes);
         String rawToken = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
 
-        RefreshToken token = new RefreshToken(user.getId(), familyId, hash(rawToken),
-                Instant.now().plus(Duration.ofDays(30)));
+        RefreshToken token =
+                new RefreshToken(user.getId(), familyId, hash(rawToken), Instant.now().plus(Duration.ofDays(30)));
         refreshTokens.save(token);
 
-        return new AuthResponse(jwtService.createAccessToken(user), rawToken,
-                responses.from(user));
+        return new AuthResponse(jwtService.createAccessToken(user), rawToken, responses.from(user));
     }
 
     private static String hash(String token) {
         try {
-            byte[] bytes = MessageDigest.getInstance("SHA-256")
-                    .digest(token.getBytes(StandardCharsets.UTF_8));
+            byte[] bytes = MessageDigest.getInstance("SHA-256").digest(token.getBytes(StandardCharsets.UTF_8));
             return HexFormat.of().formatHex(bytes);
         } catch (NoSuchAlgorithmException exception) {
             throw new IllegalStateException("SHA-256 is unavailable", exception);
@@ -160,5 +158,4 @@ public class AuthServiceImpl implements AuthService {
     private static ResponseStatusException unauthorized(String detail) {
         return new ResponseStatusException(HttpStatus.UNAUTHORIZED, detail);
     }
-
 }

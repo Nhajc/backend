@@ -1,20 +1,21 @@
 package com.nhajc.server.library.service.impl;
-import com.nhajc.server.library.service.LibraryService;
-import com.nhajc.server.library.entity.*;
-import com.nhajc.server.library.repository.*;
+
 import com.nhajc.server.artist.repository.ArtistRepository;
-import com.nhajc.server.release.repository.ReleaseRepository;
-import com.nhajc.server.song.repository.SongRepository;
-import com.nhajc.server.playlist.repository.PlaylistRepository;
 import com.nhajc.server.common.dto.PageResponse;
 import com.nhajc.server.common.service.*;
+import com.nhajc.server.library.entity.*;
+import com.nhajc.server.library.repository.*;
+import com.nhajc.server.library.service.LibraryService;
+import com.nhajc.server.playlist.repository.PlaylistRepository;
+import com.nhajc.server.release.repository.ReleaseRepository;
 import com.nhajc.server.search.repository.DiscoveryRepository;
+import com.nhajc.server.song.repository.SongRepository;
+import java.util.UUID;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
-import java.util.UUID;
 
 @Service
 public class LibraryServiceImpl implements LibraryService {
@@ -29,57 +30,92 @@ public class LibraryServiceImpl implements LibraryService {
     private final FavoriteSongRepository favorites;
     private final DiscoveryRepository discovery;
     private final DiscoveryViews views;
-    public LibraryServiceImpl(UserAccess users, ArtistRepository artists, ReleaseRepository releases,
-            SongRepository songs, PlaylistRepository playlists, SavedReleaseRepository savedReleases,
-            SavedPlaylistRepository savedPlaylists, FollowedArtistRepository follows, FavoriteSongRepository favorites,
-            DiscoveryRepository discovery, DiscoveryViews views) {
-        this.users=users;this.artists=artists;this.releases=releases;this.songs=songs;this.playlists=playlists;
-        this.savedReleases=savedReleases;this.savedPlaylists=savedPlaylists;this.follows=follows;this.favorites=favorites;
-        this.discovery=discovery;this.views=views;
+
+    public LibraryServiceImpl(
+            UserAccess users,
+            ArtistRepository artists,
+            ReleaseRepository releases,
+            SongRepository songs,
+            PlaylistRepository playlists,
+            SavedReleaseRepository savedReleases,
+            SavedPlaylistRepository savedPlaylists,
+            FollowedArtistRepository follows,
+            FavoriteSongRepository favorites,
+            DiscoveryRepository discovery,
+            DiscoveryViews views) {
+        this.users = users;
+        this.artists = artists;
+        this.releases = releases;
+        this.songs = songs;
+        this.playlists = playlists;
+        this.savedReleases = savedReleases;
+        this.savedPlaylists = savedPlaylists;
+        this.follows = follows;
+        this.favorites = favorites;
+        this.discovery = discovery;
+        this.views = views;
     }
-    @Override @Transactional(readOnly=true)
+
+    @Override
+    @Transactional(readOnly = true)
     public PageResponse<?> list(UUID actor, ItemType type, Pageable page) {
         users.require(actor);
-        return views.responses(discovery.find(actor,type,null,true,page),actor,type==null);
+        return views.responses(discovery.find(actor, type, null, true, page), actor, type == null);
     }
-    @Override @Transactional
+
+    @Override
+    @Transactional
     public void save(UUID actor, ItemType type, UUID id) {
         users.require(actor);
-        boolean exists=switch(type) {
-            case RELEASE -> releases.existsById(id);
-            case SONG -> songs.existsById(id);
-            case ARTIST -> artists.existsById(id);
-            case PLAYLIST -> {
-                var p=playlists.findById(id).orElseThrow(LibraryServiceImpl::missing);
-                if(p.isPrivate()&&!p.getOwner().getId().equals(actor))throw missing();
-                yield true;
+        boolean exists =
+                switch (type) {
+                    case RELEASE -> releases.existsById(id);
+                    case SONG -> songs.existsById(id);
+                    case ARTIST -> artists.existsById(id);
+                    case PLAYLIST -> {
+                        var p = playlists.findById(id).orElseThrow(LibraryServiceImpl::missing);
+                        if (p.isPrivate() && !p.getOwner().getId().equals(actor)) throw missing();
+                        yield true;
+                    }
+                };
+        if (!exists) throw missing();
+        switch (type) {
+            case RELEASE -> {
+                savedReleases.insertIfAbsent(actor, id);
             }
-        };
-        if(!exists)throw missing();
-        switch(type) {
-            case RELEASE -> { savedReleases.insertIfAbsent(actor,id); }
-            case PLAYLIST -> { savedPlaylists.insertIfAbsent(actor,id); }
-            case ARTIST -> { follows.insertIfAbsent(actor,id); }
-            case SONG -> { favorites.insertIfAbsent(actor,id); }
+            case PLAYLIST -> {
+                savedPlaylists.insertIfAbsent(actor, id);
+            }
+            case ARTIST -> {
+                follows.insertIfAbsent(actor, id);
+            }
+            case SONG -> {
+                favorites.insertIfAbsent(actor, id);
+            }
         }
     }
-    @Override @Transactional
+
+    @Override
+    @Transactional
     public void remove(UUID actor, ItemType type, UUID id) {
         users.require(actor);
-        if(type==ItemType.PLAYLIST) {
-            var p=playlists.findById(id);
-            if(p.isPresent()) {
-                if(p.get().getOwner().getId().equals(actor))
-                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Delete your own playlist using DELETE /playlists/{id}.");
+        if (type == ItemType.PLAYLIST) {
+            var p = playlists.findById(id);
+            if (p.isPresent()) {
+                if (p.get().getOwner().getId().equals(actor))
+                    throw new ResponseStatusException(
+                            HttpStatus.BAD_REQUEST, "Delete your own playlist using DELETE /playlists/{id}.");
             }
         }
-        switch(type) {
-            case RELEASE -> savedReleases.deleteEntry(actor,id);
-            case PLAYLIST -> savedPlaylists.deleteEntry(actor,id);
-            case ARTIST -> follows.deleteEntry(actor,id);
-            case SONG -> favorites.deleteEntry(actor,id);
+        switch (type) {
+            case RELEASE -> savedReleases.deleteEntry(actor, id);
+            case PLAYLIST -> savedPlaylists.deleteEntry(actor, id);
+            case ARTIST -> follows.deleteEntry(actor, id);
+            case SONG -> favorites.deleteEntry(actor, id);
         }
     }
-    private static ResponseStatusException missing() { return new ResponseStatusException(HttpStatus.NOT_FOUND,"Resource not found."); }
-}
 
+    private static ResponseStatusException missing() {
+        return new ResponseStatusException(HttpStatus.NOT_FOUND, "Resource not found.");
+    }
+}
