@@ -47,9 +47,8 @@ class SongUploadTest {
         images = mock(ImageStorage.class);
         service = new SongServiceImpl(songs, releases, encoder, images, storage, cleanup, manager);
         when(releases.existsById(releaseId)).thenReturn(true);
-        when(releases.getReferenceById(releaseId))
-                .thenReturn(
-                        new Release(releaseId, "Album", ReleaseType.ALBUM, LocalDate.now(), null, List.of(), Set.of()));
+        var release = new Release(releaseId, "Album", ReleaseType.ALBUM, LocalDate.now(), null, List.of(), Set.of());
+        when(releases.findByIdForUpdate(releaseId)).thenReturn(Optional.of(release));
         when(encoder.encode(any(), any(), any()))
                 .thenAnswer(invocation -> {
                     Path path = invocation.getArgument(0);
@@ -83,7 +82,7 @@ class SongUploadTest {
     void onlyTheWinningReleaseCoverUpdateCompletesItsReservation() {
         var cover = new ImageStorage.Image(new byte[] {1}, "image/png");
         when(images.normalize(any(), any())).thenReturn(cover);
-        when(images.upload(anyString(), any())).thenReturn("candidate.png");
+        when(images.upload(anyString(), any(), any())).thenReturn("candidate.png");
         when(releases.setCoverIfAbsent(releaseId, "candidate.png")).thenReturn(1, 0);
         service.upload(releaseId, request(1), file());
         service.upload(releaseId, request(2), file());
