@@ -1,9 +1,9 @@
 package com.nhajc.server.common.exception;
 
+import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
-import org.hibernate.exception.ConstraintViolationException;
 
 public final class DatabaseConflicts {
     private DatabaseConflicts() {}

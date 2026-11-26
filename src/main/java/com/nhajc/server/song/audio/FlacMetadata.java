@@ -1,15 +1,17 @@
 package com.nhajc.server.song.audio;
 
-import org.springframework.http.HttpStatus;
-import org.springframework.web.server.ResponseStatusException;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
-public record FlacMetadata(int sampleRate, int channels, int bitsPerSample, long samples,
-                           byte[] picture, String pictureMime) {
-    public int durationSeconds() { return (int) ((samples + sampleRate - 1) / sampleRate); }
+public record FlacMetadata(
+        int sampleRate, int channels, int bitsPerSample, long samples, byte[] picture, String pictureMime) {
+    public int durationSeconds() {
+        return (int) ((samples + sampleRate - 1) / sampleRate);
+    }
 
     public static FlacMetadata read(Path file) throws IOException {
         try (var in = new DataInputStream(new BufferedInputStream(Files.newInputStream(file)))) {
@@ -25,18 +27,20 @@ public record FlacMetadata(int sampleRate, int channels, int bitsPerSample, long
             int channels = (int) ((packed >>> 41) & 7) + 1;
             int bits = (int) ((packed >>> 36) & 31) + 1;
             long samples = packed & 0xfffffffffL;
-            if (rate <= 0 || rate > 48000 || channels > 2 || bits != 16 || samples == 0
-                    || samples > rate * 7200L) throw invalid();
+            if (rate <= 0 || rate > 48000 || channels > 2 || bits != 16 || samples == 0 || samples > rate * 7200L)
+                throw invalid();
             byte[] picture = null;
             String mime = null;
             long metadataBytes = 34;
             int pictureType = -1;
             while ((header & 128) == 0) {
-                header = in.readUnsignedByte(); length = length(in);
+                header = in.readUnsignedByte();
+                length = length(in);
                 metadataBytes += length + 4L;
                 if (metadataBytes > 32 * 1024 * 1024 || (header & 127) == 0 || (header & 127) == 127) throw invalid();
                 if ((header & 127) != 6 || length > 5 * 1024 * 1024 + 65536) {
-                    in.skipNBytes(length); continue;
+                    in.skipNBytes(length);
+                    continue;
                 }
                 byte[] block = in.readNBytes(length);
                 if (block.length != length) throw invalid();
@@ -51,15 +55,20 @@ public record FlacMetadata(int sampleRate, int channels, int bitsPerSample, long
                     data.skipNBytes(16); // width, height, depth, palette size
                     int size = data.readInt();
                     if (size < 0 || size != data.available()) throw invalid();
-                    if (size <= 5 * 1024 * 1024 && (candidateMime.equals("image/png") || candidateMime.equals("image/jpeg"))
+                    if (size <= 5 * 1024 * 1024
+                            && (candidateMime.equals("image/png") || candidateMime.equals("image/jpeg"))
                             && (picture == null || type == 3 && pictureType != 3)) {
-                        picture = data.readNBytes(size); mime = candidateMime; pictureType = type;
+                        picture = data.readNBytes(size);
+                        mime = candidateMime;
+                        pictureType = type;
                     }
                 }
             }
             if (in.read() == -1) throw invalid();
             return new FlacMetadata(rate, channels, bits, samples, picture, mime);
-        } catch (EOFException exception) { throw invalid(); }
+        } catch (EOFException exception) {
+            throw invalid();
+        }
     }
 
     private static int length(DataInputStream in) throws IOException {
@@ -67,7 +76,8 @@ public record FlacMetadata(int sampleRate, int channels, int bitsPerSample, long
     }
 
     public static ResponseStatusException invalid() {
-        return new ResponseStatusException(HttpStatus.BAD_REQUEST,
+        return new ResponseStatusException(
+                HttpStatus.BAD_REQUEST,
                 "Audio must be a valid native FLAC: 16-bit, at most 48 kHz, mono/stereo, duration greater than zero and at most 7200 seconds.");
     }
 }

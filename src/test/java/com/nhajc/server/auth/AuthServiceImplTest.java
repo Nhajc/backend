@@ -1,5 +1,10 @@
 package com.nhajc.server.auth;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
+
 import com.nhajc.server.auth.dto.LoginRequest;
 import com.nhajc.server.auth.dto.RegisterRequest;
 import com.nhajc.server.auth.entity.RefreshToken;
@@ -10,6 +15,9 @@ import com.nhajc.server.user.dto.UserResponse;
 import com.nhajc.server.user.entity.User;
 import com.nhajc.server.user.mapper.UserResponseMapper;
 import com.nhajc.server.user.repository.UserRepository;
+import java.util.Optional;
+import java.util.UUID;
+import org.hibernate.exception.ConstraintViolationException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -18,15 +26,6 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.server.ResponseStatusException;
-
-import org.hibernate.exception.ConstraintViolationException;
-import java.util.Optional;
-import java.util.UUID;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
 
 class AuthServiceImplTest {
     private UserRepository users;
@@ -111,7 +110,8 @@ class AuthServiceImplTest {
     void registrationRejectsExistingEmail() {
         when(users.existsByEmailIgnoreCase("existing@example.com")).thenReturn(true);
         assertThatThrownBy(() -> auth.register(new RegisterRequest("newuser", "existing@example.com", "x".repeat(12))))
-                .isInstanceOfSatisfying(ResponseStatusException.class,
+                .isInstanceOfSatisfying(
+                        ResponseStatusException.class,
                         exception -> assertThat(exception.getStatusCode().value()).isEqualTo(409));
         verify(users, never()).saveAndFlush(any());
         verifyNoInteractions(tokens);
@@ -120,7 +120,8 @@ class AuthServiceImplTest {
     @Test
     void registrationRejectsPasswordAbove72Utf8Bytes() {
         assertThatThrownBy(() -> auth.register(new RegisterRequest("dai", "dai@example.com", "€".repeat(25))))
-                .isInstanceOfSatisfying(ResponseStatusException.class,
+                .isInstanceOfSatisfying(
+                        ResponseStatusException.class,
                         exception -> assertThat(exception.getStatusCode().value()).isEqualTo(400));
         verifyNoInteractions(users, tokens);
     }
@@ -138,20 +139,23 @@ class AuthServiceImplTest {
     void concurrentDuplicateRegistrationStillReturnsConflict() {
         var violation = mock(ConstraintViolationException.class);
         when(violation.getSQLState()).thenReturn("23505");
-        when(users.saveAndFlush(any(User.class))).thenThrow(new DataIntegrityViolationException(
-                "duplicate", violation));
+        when(users.saveAndFlush(any(User.class)))
+                .thenThrow(new DataIntegrityViolationException("duplicate", violation));
         assertThatThrownBy(() -> auth.register(new RegisterRequest("dai", "dai@example.com", "x".repeat(12))))
-                .isInstanceOfSatisfying(ResponseStatusException.class,
+                .isInstanceOfSatisfying(
+                        ResponseStatusException.class,
                         exception -> assertThat(exception.getStatusCode().value()).isEqualTo(409));
         verifyNoInteractions(tokens);
     }
 
     private void assertInvalidLogin(String identifier, String password) {
         assertThatThrownBy(() -> auth.login(new LoginRequest(identifier, password)))
-                .isInstanceOfSatisfying(ResponseStatusException.class, exception -> {
-                    assertThat(exception.getStatusCode().value()).isEqualTo(401);
-                    assertThat(exception.getReason()).isEqualTo("Invalid username, email or password.");
-                });
+                .isInstanceOfSatisfying(
+                        ResponseStatusException.class,
+                        exception -> {
+                            assertThat(exception.getStatusCode().value()).isEqualTo(401);
+                            assertThat(exception.getReason()).isEqualTo("Invalid username, email or password.");
+                        });
     }
 
     private static User user(String username) {

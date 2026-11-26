@@ -14,13 +14,20 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/v1")
 public class GenreController {
     private final GenreService genres;
-    public GenreController(GenreService genres) { this.genres = genres; }
 
-    @PostMapping("/admin/genres") @ResponseStatus(HttpStatus.CREATED)
-    public IdResponse create(@Valid @RequestBody GenreRequest request) { return new IdResponse(genres.create(request)); }
+    public GenreController(GenreService genres) {
+        this.genres = genres;
+    }
+
+    @PostMapping("/admin/genres")
+    @ResponseStatus(HttpStatus.CREATED)
+    public IdResponse create(@Valid @RequestBody GenreRequest request) {
+        return new IdResponse(genres.create(request));
+    }
 
     @GetMapping("/genres")
-    public PageResponse<GenreResponse> list(@RequestParam(defaultValue = PageRequests.DEFAULT_PAGE) int page,
+    public PageResponse<GenreResponse> list(
+            @RequestParam(defaultValue = PageRequests.DEFAULT_PAGE) int page,
             @RequestParam(defaultValue = PageRequests.DEFAULT_SIZE) int size) {
         return genres.list(PageRequests.of(page, size));
     }

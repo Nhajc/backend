@@ -9,13 +9,23 @@ import java.util.UUID;
 public class Artist extends UuidEntity {
     @Column(nullable = false, columnDefinition = "text")
     private String name;
+
     @Column(name = "avatar_object_key", columnDefinition = "text")
     private String avatarObjectKey;
 
     protected Artist() {}
+
     public Artist(UUID id, String name, String avatarObjectKey) {
-        super(id); this.name = name; this.avatarObjectKey = avatarObjectKey;
+        super(id);
+        this.name = name;
+        this.avatarObjectKey = avatarObjectKey;
     }
-    public String getName() { return name; }
-    public String getAvatarObjectKey() { return avatarObjectKey; }
+
+    public String getName() {
+        return name;
+    }
+
+    public String getAvatarObjectKey() {
+        return avatarObjectKey;
+    }
 }

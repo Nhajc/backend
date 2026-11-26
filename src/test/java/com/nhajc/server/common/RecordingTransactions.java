@@ -1,10 +1,21 @@
 package com.nhajc.server.common;
+
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.AbstractPlatformTransactionManager;
 import org.springframework.transaction.support.DefaultTransactionStatus;
-import org.springframework.transaction.TransactionDefinition;
+
 public class RecordingTransactions extends AbstractPlatformTransactionManager {
-    @Override protected Object doGetTransaction() { return new Object(); }
-    @Override protected void doBegin(Object transaction, TransactionDefinition definition) {}
-    @Override protected void doCommit(DefaultTransactionStatus status) {}
-    @Override protected void doRollback(DefaultTransactionStatus status) {}
+    @Override
+    protected Object doGetTransaction() {
+        return new Object();
+    }
+
+    @Override
+    protected void doBegin(Object transaction, TransactionDefinition definition) {}
+
+    @Override
+    protected void doCommit(DefaultTransactionStatus status) {}
+
+    @Override
+    protected void doRollback(DefaultTransactionStatus status) {}
 }

@@ -7,13 +7,13 @@ import com.nhajc.server.common.service.UserAccess;
 import com.nhajc.server.library.entity.ItemType;
 import com.nhajc.server.release.dto.ReleaseSummaryResponse;
 import com.nhajc.server.search.repository.DiscoveryRepository;
-import org.springframework.data.domain.Pageable;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import java.util.Collection;
 import java.util.Map;
 import java.util.UUID;
 import java.util.function.Function;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Transactional(readOnly = true)
@@ -36,8 +36,8 @@ public class AdminCatalogService {
         return list(actor, ItemType.RELEASE, query, page, ids -> views.releases(ids, actor));
     }
 
-    private <T> PageResponse<T> list(UUID actor, ItemType type, String query, Pageable page,
-                                   Function<Collection<UUID>, Map<UUID, T>> load) {
+    private <T> PageResponse<T> list(
+            UUID actor, ItemType type, String query, Pageable page, Function<Collection<UUID>, Map<UUID, T>> load) {
         users.require(actor);
         var hits = discovery.browse(actor, type, query, page);
         var ids = hits.content().stream().map(DiscoveryRepository.Hit::id).toList();

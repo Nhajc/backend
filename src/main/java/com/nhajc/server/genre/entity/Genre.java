@@ -9,11 +9,23 @@ import java.util.UUID;
 public class Genre extends UuidEntity {
     @Column(nullable = false, columnDefinition = "text")
     private String name;
+
     @Column(nullable = false, columnDefinition = "text")
     private String slug;
 
     protected Genre() {}
-    public Genre(UUID id, String name, String slug) { super(id); this.name = name; this.slug = slug; }
-    public String getName() { return name; }
-    public String getSlug() { return slug; }
+
+    public Genre(UUID id, String name, String slug) {
+        super(id);
+        this.name = name;
+        this.slug = slug;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public String getSlug() {
+        return slug;
+    }
 }

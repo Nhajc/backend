@@ -3,11 +3,11 @@ package com.nhajc.server.storage.repository;
 import com.nhajc.server.storage.entity.StorageCleanupJob;
 import jakarta.persistence.LockModeType;
 import jakarta.persistence.QueryHint;
+import java.time.Instant;
+import java.util.List;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.*;
 import org.springframework.data.repository.query.Param;
-import java.time.Instant;
-import java.util.List;
 
 public interface StorageCleanupRepository extends JpaRepository<StorageCleanupJob, String> {
     @Modifying(flushAutomatically = true)
@@ -20,7 +20,8 @@ public interface StorageCleanupRepository extends JpaRepository<StorageCleanupJo
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @QueryHints(@QueryHint(name = "jakarta.persistence.lock.timeout", value = "-2"))
-    @Query("""
+    @Query(
+            """
             select c from StorageCleanupJob c where c.deleteAfter <= :now
               and not exists (select u.id from User u where u.avatarObjectKey = c.objectKey)
               and not exists (select a.id from Artist a where a.avatarObjectKey = c.objectKey)

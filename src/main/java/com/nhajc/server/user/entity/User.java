@@ -1,7 +1,6 @@
 package com.nhajc.server.user.entity;
 
 import jakarta.persistence.*;
-
 import java.time.Instant;
 import java.util.UUID;
 
@@ -31,8 +30,7 @@ public class User {
     @Column(name = "avatar_object_key", columnDefinition = "text")
     private String avatarObjectKey;
 
-    protected User() {
-    }
+    protected User() {}
 
     public User(String username, String email, String passwordHash) {
         this.username = username;
@@ -45,18 +43,23 @@ public class User {
     public UUID getId() {
         return id;
     }
+
     public String getUsername() {
         return username;
     }
+
     public String getEmail() {
         return email;
     }
+
     public String getPassword() {
         return password;
     }
+
     public Instant getCreatedAt() {
         return createdAt;
     }
+
     public UserRole getRole() {
         return role;
     }
